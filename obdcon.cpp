@@ -50,44 +50,109 @@ static int hex2int(const char *p)
 	return (int)i;
 }
 
-char* SendCommand(char* cmd)
+char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
 {
-	char* rcvbuf;
+	char* rcvbuf = 0;
 	size_t rcvbytes;
-	int len = strlen(cmd);
-	if( device->Writev( (char*)cmd, len, SERIAL_TIMEOUT ) != len ) {
+	int len = cmd.length();
+	if( device->Writev( (char*)cmd.c_str(), len, 500 ) != len ) {
 		cerr << "Incomplete data transmission" << endl;
-	} else if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", SERIAL_TIMEOUT) == 1) {
-		return rcvbuf;
+		return 0;
 	}
-	return 0;
+	Sleep(100);
+	bool echoed = false;
+	cmd.erase(cmd.length() - 1);
+	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
+	if (ret == -1) {
+		cerr << "Communication error" << endl;
+		return 0;
+	}
+	if (ret == 0) {
+		// first timeout
+		if( device->Writev( (char*)"\r", 1, 500 ) != 1 ) {
+			return 0;
+		}
+		rcvbuf = 0;
+		ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
+		if (ret == 0) {
+			cerr << "Communication timeout" << endl;
+		}
+		return 0;
+	}
+	if (!rcvbuf) {
+		return 0;
+	}
+	do {
+		char *p;
+		if (lookfor && (p = strstr(rcvbuf, lookfor))) {
+			return p;
+		}
+		if (!lookfor && !readall) {
+			if (strstr(rcvbuf, cmd.c_str())) {
+				echoed = true;
+				continue;
+			}
+			if (echoed)
+				return rcvbuf;
+		}
+		if (!strncmp(rcvbuf, "SEARCHING", 9)) {
+			cout << rcvbuf << endl;
+			rcvbuf = 0;
+			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000) == 1) {
+				continue;
+			} else {
+				cout << "Searching timeout" << endl;
+				break;
+			}
+		}
+	} while ((ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000)) == 1);
+	return rcvbuf;
 }
 
-int GetSensorData(int id, int resultBits = 8)
+int GetSensorData(int id, int& value, int resultBits = 8)
 {
 	int data = -1;
 	char cmd[8];
+	char answer[8];
 	sprintf(cmd, "%04X%\r", id);
-	char* reply = SendCommand(cmd);
-	sprintf(cmd, "41 %02X", id && 0xff);
+	sprintf(answer, "41 %02X", id & 0xff);
+	char* reply = SendCommand(cmd, answer);
+	if (!reply) {
+		SendCommand("\r", 0, true);
+		reply = SendCommand(cmd, answer);
+	}
 	if (reply) {
 		if (resultBits == 16) {
-			if (strlen(reply) >= 11 && !strncmp(reply, cmd, 5)) {
+			if (strlen(reply) >= 11 && !strncmp(reply, answer, 5)) {
 				data = (hex2int(reply + 6) << 8) + hex2int(reply + 9);
 			}
 		} else {
-			if (strlen(reply) >= 8 && !strncmp(reply, cmd, 5)) {
+			if (strlen(reply) >= 8 && !strncmp(reply, answer, 5)) {
 				data = hex2int(reply + 6);
 			}
 		}
-	} 
+	}
+	if (data != -1) {
+		value = data;
+	}
 	return data;
 }
+
+typedef struct {
+int rpm;
+int speed;
+int throttle;
+int coolant;
+int intake;
+int fuelShortTerm;
+int fuelLongTerm;
+int load;
+} OBD_SENSOR_DATA;
 
 int main(int argc, char* argv[])
 {
     int baudrate = 115200;
-    string devname = ctb::COM1;
+    string devname = ctb::COM4;
     string protocol = "8N1";
     int quit = 0;
     int val;
@@ -114,29 +179,33 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	char* reply = SendCommand("atz\r");
-	if (reply) {
-		cout << "Successfully connected with " << reply << endl;
+	char* reply;
+	const char* initstr[] = {"atz\r", "atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
+	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
+		reply = SendCommand(initstr[i]);
+		if (reply) {
+			cout << reply << endl;
+		}
+		Sleep(100);
 	}
 
 	memset(&sensors, 0, sizeof(sensors));
-	for (;;) {
-		sensors.rpm = GetSensorData(0x010C, 16);
-		sensors.speed = GetSensorData(0x010D);
-		sensors.throttle = GetSensorData(0x0101);
-		sensors.coolant = GetSensorData(0x0105);
-		sensors.intake = GetSensorData(0x010F);
-		sensors.fuelShortTerm = GetSensorData(0x0106);
-		sensors.fuelLongTerm = GetSensorData(0x0107);
-		sensors.load = GetSensorData(0x0104);
+	for (int n = 0; ; n++) {
+		GetSensorData(0x010C, sensors.rpm, 16);
+		GetSensorData(0x010D, sensors.speed);
+		GetSensorData(0x0101, sensors.throttle);
+		if (n % 4 == 0) {
+			GetSensorData(0x0105, sensors.coolant);
+			GetSensorData(0x010F, sensors.intake);
+			GetSensorData(0x0106, sensors.fuelShortTerm);
+			GetSensorData(0x0107, sensors.fuelLongTerm);
+			GetSensorData(0x0104, sensors.load);
+		}
 		cout << "RPM: " << sensors.rpm
 			<< " Speed: " << sensors.speed
 			<< " Intake Temp.: " << sensors.intake
 			<< " Coolant Temp.: " << sensors.coolant
 			<< " Throttle Pos.: " << sensors.throttle
-			<< " Short Term Fuel: " << sensors.fuelShortTerm
-			<< " Long Term Fuel: " << sensors.fuelLongTerm
-			<< " Load: " << sensors.load
 			<< endl;
 	}
 
