@@ -15,16 +15,12 @@ using namespace std;
 static const char* options="b:d:h:";
 static const char* helpMessage =
 {
-    "A simple serial port class test\n"
-    "ctbtest [options]\n"
+    "OBD Console\n"
+    "obdcon [options]\n"
     "available options are:\n"
-    "-a     : address (only GPIB)\n"
-    "-b     : baudrate [any value], default is 38400\n"
+    "-b     : baudrate [any value], default is 115200\n"
     "-d     : connected device, default is COM1\n"
-    "-e     : eos\n"
     "-h     : print this\n"
-    "-p     : protocol like 8N1\n"
-    "-t     : communication timeout in ms (default is 100ms)\n"
 };
 
 static ctb::IOBase* device = NULL;
@@ -138,17 +134,6 @@ int GetSensorData(int id, int& value, int resultBits = 8)
 	return data;
 }
 
-typedef struct {
-int rpm;
-int speed;
-int throttle;
-int coolant;
-int intake;
-int fuelShortTerm;
-int fuelLongTerm;
-int load;
-} OBD_SENSOR_DATA;
-
 int main(int argc, char* argv[])
 {
     int baudrate = 115200;
@@ -203,9 +188,9 @@ int main(int argc, char* argv[])
 		}
 		cout << "RPM: " << sensors.rpm
 			<< " Speed: " << sensors.speed
+			<< " Throttle Pos.: " << sensors.throttle
 			<< " Intake Temp.: " << sensors.intake
 			<< " Coolant Temp.: " << sensors.coolant
-			<< " Throttle Pos.: " << sensors.throttle
 			<< endl;
 	}
 
