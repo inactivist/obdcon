@@ -59,6 +59,8 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	char* rcvbuf;
+	size_t rcvbytes;
 	std::string line = "atz\r";
 	if( device->Writev( (char*)line.c_str(),
 					line.size(), 
@@ -66,6 +68,8 @@ int main(int argc, char* argv[])
 			 
 		cerr << "Incomplete data transmission" << endl;
 
+	} else if (device->ReadUntilEOS(rcvbuf, &rcvbytes) == 1) {
+		cout << rcvbuf << endl;
 	}
 
     device->Close();
