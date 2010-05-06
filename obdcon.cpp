@@ -91,8 +91,8 @@ char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
 			if (echoed)
 				return rcvbuf;
 		}
+		cout << rcvbuf << endl;
 		if (!strncmp(rcvbuf, "SEARCHING", 9)) {
-			cout << rcvbuf << endl;
 			rcvbuf = 0;
 			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000) == 1) {
 				continue;
@@ -114,6 +114,7 @@ int GetSensorData(int id, int& value, int resultBits = 8)
 	sprintf(answer, "41 %02X", id & 0xff);
 	char* reply = SendCommand(cmd, answer);
 	if (!reply) {
+		// trying to recover a broken session
 		SendCommand("\r", 0, true);
 		reply = SendCommand(cmd, answer);
 	}
