@@ -58,21 +58,13 @@ char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
 	Sleep(100);
 	bool echoed = false;
 	cmd.erase(cmd.length() - 1);
-	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
+	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000);
 	if (ret == -1) {
 		cerr << "Communication error" << endl;
 		return 0;
 	}
 	if (ret == 0) {
-		// first timeout
-		if( device->Writev( (char*)"\r", 1, 500 ) != 1 ) {
-			return 0;
-		}
-		rcvbuf = 0;
-		ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
-		if (ret == 0) {
-			cerr << "Communication timeout" << endl;
-		}
+		cerr << "Communication timeout" << endl;
 		return 0;
 	}
 	if (!rcvbuf) {
@@ -91,15 +83,17 @@ char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
 			if (echoed)
 				return rcvbuf;
 		}
-		cout << rcvbuf << endl;
 		if (!strncmp(rcvbuf, "SEARCHING", 9)) {
+			cout << rcvbuf << endl;
 			rcvbuf = 0;
-			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000) == 1) {
+			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 5000) == 1) {
 				continue;
 			} else {
 				cout << "Searching timeout" << endl;
 				break;
 			}
+		} else if (strstr(rcvbuf, "NO DATA")) {
+			break;
 		}
 	} while ((ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000)) == 1);
 	return rcvbuf;
@@ -178,8 +172,12 @@ int main(int argc, char* argv[])
 	memset(&sensors, 0, sizeof(sensors));
 	for (int n = 0; ; n++) {
 		GetSensorData(0x010C, sensors.rpm, 16);
+		Sleep(100);
 		GetSensorData(0x010D, sensors.speed);
+		Sleep(100);
 		GetSensorData(0x0101, sensors.throttle);
+		Sleep(100);
+		/*
 		if (n % 4 == 0) {
 			GetSensorData(0x0105, sensors.coolant);
 			GetSensorData(0x010F, sensors.intake);
@@ -187,7 +185,8 @@ int main(int argc, char* argv[])
 			GetSensorData(0x0107, sensors.fuelLongTerm);
 			GetSensorData(0x0104, sensors.load);
 		}
-		cout << "RPM: " << sensors.rpm
+		*/
+		cout << "RPM: " << sensors.rpm / 4
 			<< " Speed: " << sensors.speed
 			<< " Throttle Pos.: " << sensors.throttle
 			<< " Intake Temp.: " << sensors.intake
