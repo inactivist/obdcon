@@ -1,4 +1,4 @@
-#include "ctb.h"
+#include "libctb/ctb.h"
 
 #include <stdio.h>
 #include <stdlib.h>
