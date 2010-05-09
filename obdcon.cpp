@@ -51,7 +51,7 @@ char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
 	char* rcvbuf = 0;
 	size_t rcvbytes;
 	int len = cmd.length();
-	if( device->Writev( (char*)cmd.c_str(), len, 500 ) != len ) {
+	if( device->Writev( (char*)cmd.c_str(), len, 1000) != len ) {
 		cerr << "Incomplete data transmission" << endl;
 		return 0;
 	}
@@ -113,7 +113,9 @@ int GetSensorData(int id, int& value, int resultBits = 8)
 		reply = SendCommand(cmd, answer);
 	}
 	if (reply) {
-		if (resultBits == 16) {
+		if (strstr(reply, "NO DATA")) {
+			cerr << "No data for sensor " << id << endl;
+		} else if (resultBits == 16) {
 			if (strlen(reply) >= 11 && !strncmp(reply, answer, 5)) {
 				data = (hex2int(reply + 6) << 8) + hex2int(reply + 9);
 			}
@@ -127,6 +129,23 @@ int GetSensorData(int id, int& value, int resultBits = 8)
 		value = data;
 	}
 	return data;
+}
+
+void DisplayThread(OBD_SENSOR_DATA* sensors)
+{
+	cout << "Waiting for sensor data ready" << endl;
+	do {
+		Sleep(1000);
+	} while(!sensors->rpm);
+	for (;;) {
+		Sleep(200);
+		cout << "RPM: " << sensors->rpm / 4
+			<< " Speed: " << sensors->speed
+			<< " Throttle Pos.: " << sensors->throttle
+			<< " Intake Temp.: " << sensors->intake
+			<< " Coolant Temp.: " << sensors->coolant
+			<< endl;
+	}
 }
 
 int main(int argc, char* argv[])
@@ -160,7 +179,13 @@ int main(int argc, char* argv[])
 	}
 
 	char* reply;
-	const char* initstr[] = {"atz\r", "atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
+	reply = SendCommand("atz\r", "ELM327", true);
+	if (!reply) {
+		cerr << "ELM327 adapter not found or not responding" << endl;
+		return -1;
+	}
+	cerr << reply << endl;
+	const char* initstr[] = {"atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
 	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
 		reply = SendCommand(initstr[i]);
 		if (reply) {
@@ -170,28 +195,27 @@ int main(int argc, char* argv[])
 	}
 
 	memset(&sensors, 0, sizeof(sensors));
+	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)DisplayThread, &sensors, 0, 0);
 	for (int n = 0; ; n++) {
+		Sleep(50);
 		GetSensorData(0x010C, sensors.rpm, 16);
-		Sleep(100);
+		Sleep(50);
 		GetSensorData(0x010D, sensors.speed);
-		Sleep(100);
-		GetSensorData(0x0101, sensors.throttle);
-		Sleep(100);
-		/*
-		if (n % 4 == 0) {
+		Sleep(50);
+		GetSensorData(0x0111, sensors.throttle);
+		Sleep(50);
+		if (n < 3 || n % 16 == 0) {
 			GetSensorData(0x0105, sensors.coolant);
+			Sleep(50);
 			GetSensorData(0x010F, sensors.intake);
+			Sleep(50);
 			GetSensorData(0x0106, sensors.fuelShortTerm);
+			Sleep(50);
 			GetSensorData(0x0107, sensors.fuelLongTerm);
+			Sleep(50);
 			GetSensorData(0x0104, sensors.load);
+			Sleep(50);
 		}
-		*/
-		cout << "RPM: " << sensors.rpm / 4
-			<< " Speed: " << sensors.speed
-			<< " Throttle Pos.: " << sensors.throttle
-			<< " Intake Temp.: " << sensors.intake
-			<< " Coolant Temp.: " << sensors.coolant
-			<< endl;
 	}
 
     device->Close();
