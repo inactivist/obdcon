@@ -37,11 +37,13 @@ class COBD;
 class COBD
 {
 public:
-	COBD(const char* devname, int baudrate, const char* protocol);
-	~COBD();
+	COBD():connected(false),updateFlags(PID_RPM | PID_SPEED) {}
+	~COBD() { Uninit(); }
 	int GetSensorData(int id, int resultBits = 8);
 	char* SendCommand(std::string cmd, char* lookfor = 0, bool readall = false);
 	DWORD Update(DWORD flags, int interval = QUERY_INTERVAL);
+	bool Init(const char* devname, int baudrate, const char* protocol);
+	void Uninit();
 	bool connected;
 	OBD_SENSOR_DATA sensors;
 	DWORD updateFlags;

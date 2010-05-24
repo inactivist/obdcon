@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
     const char* protocol = "8N1";
     int quit = 0;
     int val;
-	COBD* obd;
+	COBD obd;
 
     while ( ( val=getopt( argc, argv, (char*)options ) ) != EOF ) {
 	   switch ( val ) {
@@ -38,18 +38,16 @@ int main(int argc, char* argv[])
 	   }
     }
 
-	obd = new COBD(devname, baudrate, protocol);
-	if (!obd->connected) {
+	if (!obd.Init(devname, baudrate, protocol)) {
 		cerr << "Error opening " << devname;
-		delete obd;
 		return -1;
 	}
 
 	for (int n = 0; ; n++) {
-		obd->Update(FLAG_PID_SPEED | FLAG_PID_RPM | FLAG_PID_THROTTLE);
-		cout << "RPM: " << obd->sensors.rpm
-			<< " Speed: " << obd->sensors.speed
-			<< " Throttle Pos.: " << obd->sensors.throttle
+		obd.Update(FLAG_PID_SPEED | FLAG_PID_RPM | FLAG_PID_THROTTLE);
+		cout << "RPM: " << obd.sensors.rpm
+			<< " Speed: " << obd.sensors.speed
+			<< " Throttle Pos.: " << obd.sensors.throttle
 			<< endl;
 	}
 

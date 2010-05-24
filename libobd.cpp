@@ -112,13 +112,15 @@ int COBD::GetSensorData(int id, int resultBits)
 	return data;
 }
 
-COBD::~COBD()
+void COBD::Uninit()
 {
-	device->Close();
-	delete device;
+	if (device) {
+		device->Close();
+		delete device;
+	}
 }
 
-COBD::COBD(const char* devname, int baudrate, const char* protocol):connected(false),updateFlags(PID_RPM | PID_SPEED)
+bool COBD::Init(const char* devname, int baudrate, const char* protocol)
 {
 	ctb::SerialPort* serialPort = new ctb::SerialPort();
  	if( serialPort->Open( devname, baudrate, 
@@ -128,7 +130,7 @@ COBD::COBD(const char* devname, int baudrate, const char* protocol):connected(fa
 		device = serialPort;
 	} else {
 		delete serialPort;
-		return;
+		return false;
 	}
 
 	memset(&sensors, 0, sizeof(sensors));
@@ -152,6 +154,7 @@ COBD::COBD(const char* devname, int baudrate, const char* protocol):connected(fa
 		Sleep(100);
 	}
 	connected = sensors.rpm != 0;
+	return connected;
 }
 
 DWORD COBD::Update(DWORD flags, int interval)
