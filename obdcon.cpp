@@ -1,5 +1,3 @@
-#include "libctb/ctb.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,9 +5,10 @@
 #include <iostream>
 #include <string>
 
+#include "libobd.h"
 #include "obdcon.h"
+#include "gauge.h"
 
-using namespace ctb;
 using namespace std;
 
 static const char* options="b:d:h:";
@@ -23,139 +22,39 @@ static const char* helpMessage =
     "-h     : print this\n"
 };
 
-static ctb::IOBase* device = NULL;
+COBD* obd;
+CGauge gauge;
+CGauge gauge2;
+CImageBox panel;
 
-static int hex2int(const char *p)
+void Render()
 {
-	register char c;
-	register unsigned int i=0;
+	panel.Create(540, 300, 24, "Info");
 
-	if (p[1] == 'x' || p[1] == 'X') p += 2;
-	if (!p) return 0;
-	while (*p && (*p==' ' || *p=='\t')) p++;
-	for(c=*p;;){
-		if (c>='A' && c<='F')
-			c-=7;
-		else if (c>='a' && c<='f')
-			c-=39;
-		else if (c<'0' || c>'9')
-			break;
-		i=(i<<4)|(c&0xF);
-		c=*(++p);
-	}
-	return (int)i;
-}
+	gauge.ib = &panel;
+	gauge.Load("gauge\\%d.png");
+	gauge.max = 10000;
 
-char* SendCommand(string cmd, char* lookfor = 0, bool readall = false)
-{
-	char* rcvbuf = 0;
-	size_t rcvbytes;
-	int len = cmd.length();
-	if( device->Writev( (char*)cmd.c_str(), len, 1000) != len ) {
-		cerr << "Incomplete data transmission" << endl;
-		return 0;
-	}
-	Sleep(100);
-	bool echoed = false;
-	cmd.erase(cmd.length() - 1);
-	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000);
-	if (ret == -1) {
-		cerr << "Communication error" << endl;
-		return 0;
-	}
-	if (ret == 0) {
-		cerr << "Communication timeout" << endl;
-		return 0;
-	}
-	if (!rcvbuf) {
-		return 0;
-	}
-	do {
-		char *p;
-		if (lookfor && (p = strstr(rcvbuf, lookfor))) {
-			return p;
-		}
-		if (!lookfor && !readall) {
-			if (strstr(rcvbuf, cmd.c_str())) {
-				echoed = true;
-				continue;
-			}
-			if (echoed)
-				return rcvbuf;
-		}
-		if (!strncmp(rcvbuf, "SEARCHING", 9)) {
-			cout << rcvbuf << endl;
-			rcvbuf = 0;
-			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 5000) == 1) {
-				continue;
-			} else {
-				cout << "Searching timeout" << endl;
-				break;
-			}
-		} else if (strstr(rcvbuf, "NO DATA")) {
-			break;
-		}
-	} while ((ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000)) == 1);
-	return rcvbuf;
-}
-
-int GetSensorData(int id, int& value, int resultBits = 8)
-{
-	int data = -1;
-	char cmd[8];
-	char answer[8];
-	sprintf(cmd, "%04X%\r", id);
-	sprintf(answer, "41 %02X", id & 0xff);
-	char* reply = SendCommand(cmd, answer);
-	if (!reply) {
-		// trying to recover a broken session
-		SendCommand("\r", 0, true);
-		reply = SendCommand(cmd, answer);
-	}
-	if (reply) {
-		if (strstr(reply, "NO DATA")) {
-			cerr << "No data for sensor " << id << endl;
-		} else if (resultBits == 16) {
-			if (strlen(reply) >= 11 && !strncmp(reply, answer, 5)) {
-				data = (hex2int(reply + 6) << 8) + hex2int(reply + 9);
-			}
-		} else {
-			if (strlen(reply) >= 8 && !strncmp(reply, answer, 5)) {
-				data = hex2int(reply + 6);
-			}
-		}
-	}
-	if (data != -1) {
-		value = data;
-	}
-	return data;
-}
-
-void DisplayThread(OBD_SENSOR_DATA* sensors)
-{
-	cout << "Waiting for sensor data ready" << endl;
-	do {
-		Sleep(1000);
-	} while(!sensors->rpm);
+	gauge2.ib = &panel;
+	gauge2.Load("gauge\\%d.png");
+	gauge2.max = 260;
+/*
 	for (;;) {
-		Sleep(200);
-		cout << "RPM: " << sensors->rpm / 4
-			<< " Speed: " << sensors->speed
-			<< " Throttle Pos.: " << sensors->throttle
-			<< " Intake Temp.: " << sensors->intake
-			<< " Coolant Temp.: " << sensors->coolant
-			<< endl;
+		gauge.Update(GetTickCount() % 10000);
+		gauge2.Update((GetTickCount() / 10) % 260, 300);
+		Sleep(10);
 	}
+*/
 }
 
 int main(int argc, char* argv[])
 {
     int baudrate = 115200;
-    string devname = ctb::COM4;
-    string protocol = "8N1";
+    const char* devname = "com4";
+    const char* protocol = "8N1";
     int quit = 0;
     int val;
-	OBD_SENSOR_DATA sensors;
+
 
     while ( ( val=getopt( argc, argv, (char*)options ) ) != EOF ) {
 	   switch ( val ) {
@@ -165,61 +64,29 @@ int main(int argc, char* argv[])
 	   }
     }
 
-	ctb::SerialPort* serialPort = new ctb::SerialPort();
+	/*
+	Render();
+	getchar();
+	return 0;
+	*/
 
- 	if( serialPort->Open( devname.c_str(), baudrate, 
-					protocol.c_str(), 
-					ctb::SerialPort::NoFlowControl ) >= 0 ) {
-
-		device = serialPort;
-	} else {
+	obd = new COBD(devname, baudrate, protocol);
+	if (!obd->connected) {
 		cerr << "Error opening " << devname;
-		delete device;
+		delete obd;
 		return -1;
 	}
 
-	char* reply;
-	reply = SendCommand("atz\r", "ELM327", true);
-	if (!reply) {
-		cerr << "ELM327 adapter not found or not responding" << endl;
-		return -1;
-	}
-	cerr << reply << endl;
-	const char* initstr[] = {"atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
-	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
-		reply = SendCommand(initstr[i]);
-		if (reply) {
-			cout << reply << endl;
-		}
-		Sleep(100);
-	}
+	Render();
 
-	memset(&sensors, 0, sizeof(sensors));
-	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)DisplayThread, &sensors, 0, 0);
+	
 	for (int n = 0; ; n++) {
-		Sleep(50);
-		GetSensorData(0x010C, sensors.rpm, 16);
-		Sleep(50);
-		GetSensorData(0x010D, sensors.speed);
-		Sleep(50);
-		GetSensorData(0x0111, sensors.throttle);
-		Sleep(50);
-		if (n < 3 || n % 16 == 0) {
-			GetSensorData(0x0105, sensors.coolant);
-			Sleep(50);
-			GetSensorData(0x010F, sensors.intake);
-			Sleep(50);
-			GetSensorData(0x0106, sensors.fuelShortTerm);
-			Sleep(50);
-			GetSensorData(0x0107, sensors.fuelLongTerm);
-			Sleep(50);
-			GetSensorData(0x0104, sensors.load);
-			Sleep(50);
-		}
+		obd->Update(FLAG_PID_SPEED | FLAG_PID_RPM | FLAG_PID_THROTTLE);
+		cout << "RPM: " << obd->sensors.rpm
+			<< " Speed: " << obd->sensors.speed
+			<< " Throttle Pos.: " << obd->sensors.throttle
+			<< endl;
 	}
 
-    device->Close();
-
-    delete device;
 	return 0;
 }
