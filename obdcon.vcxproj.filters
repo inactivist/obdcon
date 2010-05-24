@@ -4,12 +4,6 @@
     <ClCompile Include="obdcon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="imagebox.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gauge.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="libctb\fifo.cpp">
       <Filter>Source Files\libctb</Filter>
     </ClCompile>
@@ -34,6 +28,9 @@
     <ClCompile Include="libctb\win32\timer.cpp">
       <Filter>Source Files\libctb</Filter>
     </ClCompile>
+    <ClCompile Include="libobd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
@@ -54,6 +51,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="gauge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libobd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -7,7 +7,6 @@
 
 #include "libobd.h"
 #include "obdcon.h"
-#include "gauge.h"
 
 using namespace std;
 
@@ -22,31 +21,6 @@ static const char* helpMessage =
     "-h     : print this\n"
 };
 
-COBD* obd;
-CGauge gauge;
-CGauge gauge2;
-CImageBox panel;
-
-void Render()
-{
-	panel.Create(540, 300, 24, "Info");
-
-	gauge.ib = &panel;
-	gauge.Load("gauge\\%d.png");
-	gauge.max = 10000;
-
-	gauge2.ib = &panel;
-	gauge2.Load("gauge\\%d.png");
-	gauge2.max = 260;
-/*
-	for (;;) {
-		gauge.Update(GetTickCount() % 10000);
-		gauge2.Update((GetTickCount() / 10) % 260, 300);
-		Sleep(10);
-	}
-*/
-}
-
 int main(int argc, char* argv[])
 {
     int baudrate = 115200;
@@ -54,7 +28,7 @@ int main(int argc, char* argv[])
     const char* protocol = "8N1";
     int quit = 0;
     int val;
-
+	COBD* obd;
 
     while ( ( val=getopt( argc, argv, (char*)options ) ) != EOF ) {
 	   switch ( val ) {
@@ -64,12 +38,6 @@ int main(int argc, char* argv[])
 	   }
     }
 
-	/*
-	Render();
-	getchar();
-	return 0;
-	*/
-
 	obd = new COBD(devname, baudrate, protocol);
 	if (!obd->connected) {
 		cerr << "Error opening " << devname;
@@ -77,9 +45,6 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	Render();
-
-	
 	for (int n = 0; ; n++) {
 		obd->Update(FLAG_PID_SPEED | FLAG_PID_RPM | FLAG_PID_THROTTLE);
 		cout << "RPM: " << obd->sensors.rpm
