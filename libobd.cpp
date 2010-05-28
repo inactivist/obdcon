@@ -120,7 +120,7 @@ void COBD::Uninit()
 	}
 }
 
-bool COBD::Init(const char* devname, int baudrate, const char* protocol)
+bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 {
 	ctb::SerialPort* serialPort = new ctb::SerialPort();
  	if( serialPort->Open( devname, baudrate, 

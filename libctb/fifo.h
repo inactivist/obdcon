@@ -9,7 +9,7 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-#include <sys/types.h>
+//#include <sys/types.h>
 
 namespace ctb {
 

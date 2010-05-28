@@ -42,7 +42,7 @@ public:
 	int GetSensorData(int id, int resultBits = 8);
 	char* SendCommand(std::string cmd, char* lookfor = 0, bool readall = false);
 	DWORD Update(DWORD flags, int interval = QUERY_INTERVAL);
-	bool Init(const char* devname, int baudrate, const char* protocol);
+	bool Init(const TCHAR* devname, int baudrate, const char* protocol);
 	void Uninit();
 	bool connected;
 	OBD_SENSOR_DATA sensors;
@@ -50,3 +50,9 @@ public:
 private:
 	ctb::IOBase* device;
 };
+
+#ifdef WINCE
+#define MSG(x) MessageBox(0, TEXT(x), 0, MB_OK);
+#else
+#define MSG(x) fprintf(stderr, "%s\n", x);
+#endif

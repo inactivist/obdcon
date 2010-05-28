@@ -30,45 +30,22 @@
 namespace ctb {
 
     /*! specifices the first serial port */
-    extern const char* COM1;
+    extern const TCHAR* COM1;
     /*! specifies the second serial port */
-    extern const char* COM2;
+    extern const TCHAR* COM2;
     /*! specifies the third serial port */
-    extern const char* COM3;
+    extern const TCHAR* COM3;
     /*! specifies the fourth serial port */
-    extern const char* COM4;
+    extern const TCHAR* COM4;
     /*! specifies the fifth serial port */
-    extern const char* COM5;
+    extern const TCHAR* COM5;
     /*! specifies the sixth serial port */
-    extern const char* COM6;
+    extern const TCHAR* COM6;
     /*! specifies the seventh serial port */
-    extern const char* COM7;
+    extern const TCHAR* COM7;
     /*! specifies the eighth serial port */
-    extern const char* COM8;
+    extern const TCHAR* COM8;
     /*! specifies the ninth serial port */
-    extern const char* COM9;
-    /*! specifies the tenth serial port */
-    extern const char* COM10;
-    /*! specifies the eleventh serial port */
-    extern const char* COM11;
-    /*! specifies the twelfth serial port */
-    extern const char* COM12;
-    /*! specifies the thriteenth serial port */
-    extern const char* COM13;
-    /*! specifies the fourteenth serial port */
-    extern const char* COM14;
-    /*! specifies the fiveteenth serial port */
-    extern const char* COM15;
-    /*! specifies the sixteenth serial port */
-    extern const char* COM16;
-    /*! specifies the seventeenth serial port */
-    extern const char* COM17;
-    /*! specifies the eighteenth serial port */
-    extern const char* COM18;
-    /*! specifies the nineteenth serial port */
-    extern const char* COM19;
-    /*! specifies the twentieth serial port */
-    extern const char* COM20;
 
     /*!
 	 \enum Parity
@@ -369,7 +346,7 @@ namespace ctb {
 		XonXoffFlowControl.
 		\return the new file descriptor, or -1 if an error occurred
 	    */
-	   int Open( const char* portname, int baudrate,
+	   int Open( const TCHAR* portname, int baudrate,
 			   const char* protocol = "8N1",
 			   FlowControl flowControl = NoFlowControl );
 

@@ -7,13 +7,23 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
+#include <windows.h>
 #include <string.h>
 #include "serport.h"
 
 #define SERIALPORT_BUFSIZE 4096
 
 namespace ctb {
-
+#ifdef WINCE
+	const TCHAR* COM1 = TEXT("COM1:");
+    const TCHAR* COM2 = TEXT("COM2:");
+    const TCHAR* COM3 = TEXT("COM3:");
+    const TCHAR* COM4 = TEXT("COM4:");
+    const TCHAR* COM5 = TEXT("COM5:");
+    const TCHAR* COM6 = TEXT("COM6:");
+    const TCHAR* COM7 = TEXT("COM7:");
+    const TCHAR* COM8 = TEXT("COM8:");
+#else
     const char* COM1 = "com1";
     const char* COM2 = "com2";
     const char* COM3 = "com3";
@@ -21,19 +31,8 @@ namespace ctb {
     const char* COM5 = "com5";
     const char* COM6 = "com6";
     const char* COM7 = "com7";
-    const char* COM8 = "com8";
-    const char* COM9 = "com9";
-    const char* COM10 = "\\\\.\\com10";
-    const char* COM11 = "\\\\.\\com11";
-    const char* COM12 = "\\\\.\\com12";
-    const char* COM13 = "\\\\.\\com13";
-    const char* COM14 = "\\\\.\\com14";
-    const char* COM15 = "\\\\.\\com15";
-    const char* COM16 = "\\\\.\\com16";
-    const char* COM17 = "\\\\.\\com17";
-    const char* COM18 = "\\\\.\\com18";
-    const char* COM19 = "\\\\.\\com19";
-    const char* COM20 = "\\\\.\\com20";
+    const char* COM8 = "\\\\.\\com8";
+#endif
 
     SerialPort::SerialPort()
     {
@@ -184,7 +183,7 @@ namespace ctb {
 	   return (fd != INVALID_HANDLE_VALUE);
     };
 
-    int SerialPort::OpenDevice(const char* devname, void* dcs)
+    int SerialPort::OpenDevice(const TCHAR* devname, void* dcs)
     {
 	   // if dcs isn't NULL, type cast
 	   if(dcs) m_dcs = *(SerialPort_DCS*)dcs;
@@ -194,7 +193,11 @@ namespace ctb {
 				    0,		// not shared
 				    NULL,	// default value for object security ?!?
 				    OPEN_EXISTING, // file (device) exists
+#ifdef WINCE
+					0,
+#else
 				    FILE_FLAG_OVERLAPPED,	// asynchron handling
+#endif
 				    NULL); // no more handle flags
 	
 	   if(fd == INVALID_HANDLE_VALUE) {
@@ -439,10 +442,12 @@ namespace ctb {
 			 FlushFileBuffers(fd);
 			 // first you must call GetOverlappedResult, then you
 			 // get the REALLY transmitted count of bytes
+#ifndef WINCE
 			 if(!GetOverlappedResult(fd,&m_ov,&write,TRUE)) {
 				// ooops... something is going wrong
 				return (int)write;
 			 }
+#endif
 		  }
 	   }
 	   return write;

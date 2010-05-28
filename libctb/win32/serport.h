@@ -51,7 +51,7 @@ namespace ctb {
 	   int m_rtsdtr_state;
 
 	   int CloseDevice();
-	   int OpenDevice(const char* devname, void* dcs);
+	   int OpenDevice(const TCHAR* devname, void* dcs);
     public:
 	   SerialPort();
 	   ~SerialPort();

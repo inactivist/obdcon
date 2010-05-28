@@ -1,10 +1,12 @@
 #include "serportx.h"
-
+#ifdef WINCE
+#include <windows.h>
+#endif
 #include <sstream>
 
 namespace ctb {
 
-    int SerialPort_x::Open( const char* portname, int baudrate,
+    int SerialPort_x::Open( const TCHAR* portname, int baudrate,
 					   const char* protocol,
 					   FlowControl flowControl )
     {
@@ -70,17 +72,20 @@ namespace ctb {
 		  return -1;
 
 	   }
- 	   std::stringstream devname;
+	   TCHAR devname[32];
 
 #if defined ( WIN32 )
-	   // some systems like WinCE doesn't like the extended port numbering...
-	   portnumber < 10 ? devname << "com" << portnumber : 
-		  devname << "\\\\.\\com" << portnumber;
+#ifdef WINCE
+	   wsprintf(devname, TEXT("COM%d:"), portnumber);
+#else
+	   sprintf(devname, "\\\\.\\COM%d", portnumber);
+
+#endif
 #else
 	   devname << "/dev/ttyS" << ( portnumber - 1 );
 #endif
     
-	   return Open( devname.str().c_str(), baudrate, protocol, flowControl );
+	   return Open( devname, baudrate, protocol, flowControl );
     }
 
     bool SerialPort_x::IsStandardRate( int rate )

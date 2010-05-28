@@ -51,18 +51,22 @@ namespace ctb {
     int Timer::start()
     {
 	   stop();
+#ifndef WINCE
 	   control.stop = timeSetEvent(control.msecs, 
 							 (control.msecs > 10) ? 5 : 1, 
 							 (LPTIMECALLBACK) timer_fnc, 
 							 (DWORD) &control, 
 							 TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+#endif
 	   return 0;
     };
 
     int Timer::stop()
     {
+#ifndef WINCE
 	   if (control.stop)
 		  timeKillEvent(control.stop);
+#endif
 	   control.stop = 0;
 	   return 0;
     };
@@ -77,9 +81,14 @@ namespace ctb {
 	   // calls it so Sleep(1) will truly sleep for just a millisecond,
 	   // rather than the default 10!
 	   // See: http://www.geisswerks.com/ryan/FAQS/timing.html
+#ifdef WINCE
+	   Sleep(ms);
+#else
 	   timeBeginPeriod(1);
+	   Sleep(ms);
 	   SleepEx(ms,false);
 	   timeEndPeriod(1);
+#endif
     };
 
 } // namespace ctb

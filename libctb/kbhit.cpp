@@ -1,5 +1,9 @@
 #if defined ( WIN32 )
+#if !defined ( WINCE )
 # include <conio.h>
+#else
+# include <stdio.h>
+#endif
 #else
 # include <stdio.h>
 # include <termios.h>
@@ -10,9 +14,11 @@ namespace ctb {
     char GetKey()
     {
 #if defined ( WIN32 )
+#if !defined ( WINCE )
 	   if(_kbhit()) {
 		  return _getch();
 	   }
+#endif
 	   return '\0';
 #else
 	   int ch;

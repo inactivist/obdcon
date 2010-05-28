@@ -9,8 +9,13 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
+#ifdef WIN32
+#include <tchar.h>
+#else
+#typdef char TCHAR
+#endif
 #include "fifo.h"
-#include <sys/types.h>
+//#include <sys/types.h>
 
 namespace ctb {
 
@@ -91,7 +96,7 @@ namespace ctb {
 		\sa struct dcs_devCUA (data struct for the serail com ports)
 		\return zero on success, otherwise -1
 	   */
-	   virtual int OpenDevice(const char* devname, void* dcs = 0L) = 0;
+	   virtual int OpenDevice(const TCHAR* devname, void* dcs = 0L) = 0;
     public:
 	   /*!
 		Default constructor
@@ -156,7 +161,7 @@ namespace ctb {
 		things like parity, word length and count of stop bits,
 		a IEEE class adress and EOS character).
 	   */
-	   int Open(const char* devname,void* dcs=0L) {
+	   int Open(const TCHAR* devname,void* dcs=0L) {
 		  return OpenDevice(devname,dcs);
 	   };
 
