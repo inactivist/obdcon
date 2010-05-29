@@ -37,7 +37,7 @@ class COBD;
 class COBD
 {
 public:
-	COBD():connected(false),updateFlags(PID_RPM | PID_SPEED) {}
+	COBD():connected(false),running(true),updateFlags(PID_RPM | PID_SPEED) {}
 	~COBD() { Uninit(); }
 	int GetSensorData(int id, int resultBits = 8);
 	char* SendCommand(std::string cmd, char* lookfor = 0, bool readall = false);
@@ -47,6 +47,7 @@ public:
 	bool connected;
 	OBD_SENSOR_DATA sensors;
 	DWORD updateFlags;
+	bool running;
 private:
 	ctb::IOBase* device;
 };

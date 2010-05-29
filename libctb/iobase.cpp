@@ -23,12 +23,8 @@ namespace ctb {
 	   int timeout = 0;
 	   size_t toread = len;
 
-	   Timer t(timeout_in_ms,&timeout,NULL);
-	   if(timeout_in_ms != 0xFFFFFFFF) {
-		  t.start();
-	   }
-
-	   while(!timeout && (toread > 0)) {
+	   Timer t(timeout_in_ms);
+	   while(!t.timeout() && (toread > 0)) {
 		  if((n = Read(cp,toread)) < 0) {
 			 break;
 		  }
@@ -77,11 +73,10 @@ namespace ctb {
     int IOBase::ReadUntilEOS(char*& readbuf,
 						 size_t* readedBytes,
 						 char* eosString,
-						 long timeout_in_ms,
+						 unsigned int timeout_in_ms,
 						 char quota)
     {
 	   int n = 0;
-	   int timeout = 0;
 	   int bufsize = DELTA_BUFSIZE;
 	   int result = 0;
 	   int quoted = 0;
@@ -90,10 +85,9 @@ namespace ctb {
 	   char* eos = eosString;
 	   char ch;
 
-	   Timer t(timeout_in_ms,&timeout,NULL);
-	   t.start();
+	   Timer t(timeout_in_ms);
 
-	   while(!timeout) {
+	   while(!t.timeout()) {
 		  if(des >= &buf[bufsize]) {
 			 // buffer full, realloc more memory
 			 char* tmp = new char[bufsize + DELTA_BUFSIZE + 1];
@@ -159,15 +153,10 @@ namespace ctb {
     {
 	   char *cp = buf;
 	   int n = 0;
-	   int timeout = 0;
 	   size_t towrite = len;
+	   Timer t(timeout_in_ms);
 
-	   Timer t(timeout_in_ms,&timeout,NULL);
-	   if(timeout_in_ms != 0xFFFFFFFF) {
-		  t.start();
-	   }
-
-	   while(!timeout && (towrite > 0)) {
+	   while(!t.timeout() && (towrite > 0)) {
 		  if((n = Write(cp,towrite)) < 0) {
 			 // an error occurs
 			 break;

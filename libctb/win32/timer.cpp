@@ -21,74 +21,20 @@
 
 namespace ctb {
 
-    static void WINAPI timer_fnc(UINT uTimerID, 
-						   UINT uMsg, 
-						   DWORD_PTR dwUser, 
-						   DWORD_PTR dw1, 
-						   DWORD_PTR dw2)
+    Timer::Timer(unsigned int msecs)
     {
-	   timer_control *tc = (timer_control*)dwUser;
+		timeout_in_ms = msecs;
+		start_time = GetTickCount();
+    }
 
-	   if(tc->exitfnc) tc->exitfnc(NULL);
-	   if(tc->exitflag) *tc->exitflag = 1;
-	   tc->stop = 0;
-    };
-
-    Timer::Timer(unsigned int msecs,int* exitflag,void*(*exitfnc)(void*))
-    {
-	   control.msecs = msecs;
-	   if(!control.msecs) control.msecs = 1;
-	   control.exitflag = exitflag;
-	   control.exitfnc = exitfnc;
-	   control.stop = 0;
-    };
-
-    Timer::~Timer()
-    {
-	   stop();				  // stop the thread
-    };
-
-    int Timer::start()
-    {
-	   stop();
-#ifndef WINCE
-	   control.stop = timeSetEvent(control.msecs, 
-							 (control.msecs > 10) ? 5 : 1, 
-							 (LPTIMECALLBACK) timer_fnc, 
-							 (DWORD) &control, 
-							 TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
-#endif
-	   return 0;
-    };
-
-    int Timer::stop()
-    {
-#ifndef WINCE
-	   if (control.stop)
-		  timeKillEvent(control.stop);
-#endif
-	   control.stop = 0;
-	   return 0;
-    };
-
-    void kill_all_timer()
-    {
-    };
+	bool Timer::timeout()
+	{
+		return (GetTickCount() - start_time >= timeout_in_ms);
+	}
 
     void sleepms(unsigned int ms)
     {
-	   // set the granularity of Sleep() for the application, that
-	   // calls it so Sleep(1) will truly sleep for just a millisecond,
-	   // rather than the default 10!
-	   // See: http://www.geisswerks.com/ryan/FAQS/timing.html
-#ifdef WINCE
 	   Sleep(ms);
-#else
-	   timeBeginPeriod(1);
-	   Sleep(ms);
-	   SleepEx(ms,false);
-	   timeEndPeriod(1);
-#endif
     };
 
 } // namespace ctb
