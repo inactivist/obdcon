@@ -1,7 +1,7 @@
 #include <string>
 #include "ctb.h"
 
-#define QUERY_INTERVAL 50
+#define QUERY_INTERVAL 100
 
 #define PID_RPM 0x010C
 #define PID_SPEED 0x010D

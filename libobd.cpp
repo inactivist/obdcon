@@ -145,13 +145,14 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		Sleep(100);
 	}
 
-	for (int n = 0; n < 50; n++) {
+	for (int n = 0; n < 3; n++) {
+		cout << "Waiting for data / attempt " << n + 1 << endl;
 		int value = GetSensorData(PID_RPM, 16);
 		if (value > 0) {
 			sensors.rpm = value / 4;
 			break;
 		}
-		Sleep(100);
+		Sleep(3000);
 	}
 	connected = sensors.rpm != 0;
 	return connected;
