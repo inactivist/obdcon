@@ -1,7 +1,10 @@
 #include <string>
 #include "ctb.h"
 
-#define QUERY_INTERVAL 100
+#define QUERY_INTERVAL 200
+#define QUERY_INTERVAL_MIN 50
+#define QUERY_INTERVAL_MAX 500
+#define QUERY_INTERVAL_STEP 25
 
 #define PID_RPM 0x010C
 #define PID_SPEED 0x010D
@@ -37,18 +40,22 @@ class COBD;
 class COBD
 {
 public:
-	COBD():connected(false),running(true),updateFlags(PID_RPM | PID_SPEED) {}
+	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL),updateFlags(PID_RPM | PID_SPEED) {}
 	~COBD() { Uninit(); }
 	int GetSensorData(int id, int resultBits = 8);
 	char* SendCommand(std::string cmd, char* lookfor = 0, bool readall = false);
-	DWORD Update(DWORD flags, int interval = QUERY_INTERVAL);
+	DWORD Update(DWORD flags);
 	bool Init(const TCHAR* devname, int baudrate, const char* protocol);
 	void Uninit();
+	void Wait(int interval);
 	bool connected;
 	OBD_SENSOR_DATA sensors;
 	DWORD updateFlags;
 	bool running;
 private:
+	int RetrieveData(int pid, int resultBits = 8);
+	DWORD lastTick;
+	int updateInterval;
 	ctb::IOBase* device;
 };
 
