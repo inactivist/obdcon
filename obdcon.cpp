@@ -1,3 +1,11 @@
+/*************************************************************************
+* OBD Console - The OBD-II console utility
+* Distributed under MPL 1.1
+*
+* Copyright (c) 2010 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+**************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,11 +51,19 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	PID_INFO* pid[3] = {
+		obd.GetPidInfo(PID_RPM),
+		obd.GetPidInfo(PID_SPEED),
+		obd.GetPidInfo(PID_THROTTLE)
+	};
+	pid[0]->active = 1;
+	pid[1]->active = 1;
+	pid[2]->active = 1;
 	for (int n = 0; ; n++) {
-		obd.Update(FLAG_PID_SPEED | FLAG_PID_RPM | FLAG_PID_THROTTLE);
-		cout << "RPM: " << obd.sensors.rpm
-			<< " Speed: " << obd.sensors.speed
-			<< " Throttle Pos.: " << obd.sensors.throttle
+		obd.Update();
+		cout << "RPM: " << pid[0]->data.value
+			<< " Speed: " << pid[1]->data.value
+			<< " Throttle Pos.: " << pid[2]->data.value
 			<< endl;
 	}
 

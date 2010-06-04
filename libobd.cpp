@@ -1,9 +1,49 @@
+/*************************************************************************
+* libobd - The OBD-II access library
+* Distributed under MPL 1.1
+*
+* Copyright (c) 2010 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+**************************************************************************/
+
 #include <stdio.h>
 #include <iostream>
 #include "libobd.h"
 
 using namespace ctb;
 using namespace std;
+
+static PID_INFO pids[] = {
+	{0x0103, 2, 3, "Fuel system status"},
+	{0x0104, 1, 2, "Calculated engine load value"},		// % A*100/255
+	{0x0105, 1, 3, "Engine coolant temperature"},			// буC 	A-40
+	{0x0106, 1, 2, "Short term fuel % trim - Bank 1"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
+	{0x0107, 1, 2, "Long term fuel % trim - Bank 1"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
+	{0x010A, 1, 2, "Fuel pressure"},						// kPa (gauge) 	A*3
+	{0x010B, 1, 2, "Intake manifold absolute pressure"},	// kPa (absolute)	A
+	{0x010C, 2, 1, "Engine RPM"},							// ((A*256)+B)/4
+	{0x010D, 1, 1, "Vehicle speed"},						// km/h 	A
+	{0x010E, 1, 2, "Ignition Timing advance"},				// бу relative to #1 cylinder 	A/2 - 64
+	{0x010F, 1, 3, "Intake air temperature"}, 				// буC 	A-40
+	{0x0110, 2, 2, "MAF air flow rate"},					// g/s 	((A*256)+B) / 100
+	{0x0111, 1, 1, "Throttle position"},					// % 	A*100/255
+	{0x0121, 2, 3, "Distance traveled with malfunction indicator lamp (MIL) on"},		// km 	(A*256)+B
+	{0x0122, 2, 3, "Fuel Rail Pressure (relative to manifold vacuum)"}, //	kPa 	(((A*256)+B) * 10) / 128
+	{0x012C, 1, 3, "Commanded EGR"},						// % 	100*A/255
+	{0x012D, 1, 3, "EGR Error"},							// % 	(A-128) * 100/128
+	{0x012F, 1, 3, "Fuel Level Input"},					// % 	100*A/255
+	{0x0131, 2, 3, "Distance traveled since codes cleared"}, // km 	(A*256)+B
+	{0x0133, 1, 3, "Barometric pressure"},					// kPa (Absolute) 	A
+	{0x013C, 2, 3, "Catalyst Temperature"},				// буC 	((A*256)+B)/10 - 40
+	{0x0143, 2, 2, "Absolute load value"},					// % 	((A*256)+B)*100/255
+	{0x0145, 1, 2, "Relative throttle position"},			// % 	A*100/255
+	{0x0146, 1, 3, "Ambient air temperature"},				// буC 	A-40
+	{0x0147, 1, 2, "Absolute throttle position B"},		// % 	A*100/255
+	{0x0149, 1, 2, "Accelerator pedal position D"},		// % 	A*100/255
+	{0x014C, 1, 3, "Commanded throttle actuator"},			// % 	A*100/255
+	{0x014D, 2, 3, "Time run with MIL on"},				// minutes 	(A*256)+B
+	{0x014E, 2, 3, "Time since trouble codes cleared"},	// minutes 	(A*256)+B
+};
 
 static int hex2int(const char *p)
 {
@@ -86,9 +126,27 @@ char* COBD::SendCommand(string cmd, char* lookfor, bool readall)
 	return rcvbuf;
 }
 
-int COBD::GetSensorData(int id, int resultBits)
+PID_INFO* COBD::GetPidInfo(int pid)
 {
-	int data = -1;
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		if (pids[i].pid == pid)
+			return &pids[i];
+	}
+	return 0;
+}
+
+PID_INFO* COBD::GetPidInfo(const char* name)
+{
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		if (!strcmp(name, pids[i].name))
+			return &pids[i];
+	}
+	return 0;
+}
+
+int COBD::GetSensorData(int id)
+{
+	int data = INVALID_PID_DATA;
 	char cmd[8];
 	char answer[8];
 	sprintf(cmd, "%04X%\r", id);
@@ -100,7 +158,8 @@ int COBD::GetSensorData(int id, int resultBits)
 		reply = SendCommand(cmd, answer);
 	}
 	if (reply) {
-		if (resultBits == 16) {
+		const PID_INFO* pidInfo = GetPidInfo(id);
+		if (pidInfo && pidInfo->dataBytes > 1) {
 			if (strlen(reply) >= 11 && !strncmp(reply, answer, 5)) {
 				data = (hex2int(reply + 6) << 8) + hex2int(reply + 9);
 			}
@@ -134,7 +193,10 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		return false;
 	}
 
-	memset(&sensors, 0, sizeof(sensors));
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		pids[i].data.time = 0;
+		pids[i].data.value = 0;
+	}
 
 	char* reply;
 	const char* initstr[] = {"atz\r", "atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
@@ -147,17 +209,15 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		Wait(100);
 	}
 
+	PID_DATA data;
 	for (int n = 0; n < 3; n++) {
-		cout << "Waiting for data / attempt " << n + 1 << endl;
-		Wait(0);
-		int value = GetSensorData(PID_RPM, 16);
-		if (value > 0) {
-			sensors.rpm = value / 4;
+		cout << "Waiting for sensor data / attempt " << n + 1 << endl;
+		if (RetrieveSensor(PID_RPM, data)) {
 			break;
 		}
 		Wait(3000);
 	}
-	connected = sensors.rpm != 0;
+	connected = data.value != 0;
 	return connected;
 }
 
@@ -177,69 +237,48 @@ void COBD::Wait(int interval)
 	lastTick = tick;
 }
 
-int COBD::RetrieveData(int pid, int resultBits)
+bool COBD::RetrieveSensor(int pid, PID_DATA& data)
 {
 	int value;
 	Wait(updateInterval);
-	if ((value = GetSensorData(pid, resultBits)) > 0) {
+	if ((value = GetSensorData(pid)) != INVALID_PID_DATA) {
 		updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
-		return value;
+		if (value != INVALID_PID_DATA) {
+			switch (pid) {
+			case PID_LOAD:
+			case PID_THROTTLE:
+				data.value = value * 100 / 255;
+				break;
+			case PID_RPM:
+				data.value = value / 4;
+				break;
+			case PID_COOLANT_TEMP:
+			case PID_INTAKE_TEMP:
+				data.value = value - 40;
+				break;
+			case PID_FUEL_SHORT_TERM:
+			case PID_FUEL_LONG_TERM:
+				data.value = (value-128) * 100/128;
+				break;
+			default:
+				data.value = value;
+			}
+		}
+		data.time = GetTickCount();
+		return true;
 	} else {
 		updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
-		return -1;
+		return false;
 	}
 }
 
-DWORD COBD::Update(DWORD flags)
+DWORD COBD::Update()
 {
-	int value;
 	DWORD ret = 0;
-	if (flags & FLAG_PID_RPM) {
-		if ((value = RetrieveData(PID_RPM, 16)) > 0) {
-			sensors.rpm = value / 4;
-			ret |= FLAG_PID_RPM;
-		}
-	}
-	if (flags & FLAG_PID_SPEED) {
-		if ((value = RetrieveData(PID_SPEED)) > 0) {
-			sensors.speed = value;
-			ret |= FLAG_PID_SPEED;
-		}
-	}
-	if (flags & FLAG_PID_THROTTLE) {
-		if ((value = RetrieveData(PID_THROTTLE)) > 0) {
-			sensors.throttle = value;
-			ret |= FLAG_PID_THROTTLE;
-		}
-	}
-	if (flags & FLAG_PID_LOAD) {
-		if ((value = RetrieveData(PID_LOAD)) > 0) {
-			sensors.load = value;
-			ret |= FLAG_PID_LOAD;
-		}
-	}
-	if (flags & FLAG_PID_COOLANT_TEMP) {
-		if ((value = RetrieveData(PID_COOLANT_TEMP)) > 0) {
-			sensors.coolant = value;
-			ret |= FLAG_PID_COOLANT_TEMP;
-		}
-	}
-	if (flags & FLAG_PID_INTAKE_TEMP) {
-		if ((value = RetrieveData(PID_INTAKE_TEMP)) > 0) {
-			sensors.intake = value;
-			ret |= FLAG_PID_INTAKE_TEMP;
-		}
-	}
-	if (flags & FLAG_PID_FUEL_SHORT_TERM) {
-		if ((value = RetrieveData(PID_FUEL_SHORT_TERM)) > 0) {
-			sensors.fuelShortTerm = value;
-			ret |= FLAG_PID_FUEL_SHORT_TERM;
-		}
-	}
-	if (flags & FLAG_PID_FUEL_LONG_TERM) {
-		if ((value = RetrieveData(PID_FUEL_LONG_TERM)) > 0) {
-			sensors.fuelLongTerm = value;
-			ret |= FLAG_PID_FUEL_LONG_TERM;
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		if (pids[i].active) {
+			RetrieveSensor(pids[i].pid, pids[i].data);
+			ret++;
 		}
 	}
 	return ret;

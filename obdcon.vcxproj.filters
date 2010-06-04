@@ -47,12 +47,6 @@
     <ClInclude Include="obdcon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="imagebox.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="gauge.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="libobd.h">
       <Filter>Header Files</Filter>
     </ClInclude>

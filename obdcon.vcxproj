@@ -103,8 +103,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gauge.h" />
-    <ClInclude Include="imagebox.h" />
     <ClInclude Include="libobd.h" />
     <ClInclude Include="obdcon.h" />
   </ItemGroup>
