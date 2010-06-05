@@ -16,6 +16,7 @@
 #define QUERY_INTERVAL_MIN 50
 #define QUERY_INTERVAL_MAX 500
 #define QUERY_INTERVAL_STEP 25
+#define ADAPT_PERIOD  30000 /* ms */
 
 typedef struct {
 	DWORD time;
