@@ -63,6 +63,7 @@ public:
 private:
 	bool RetrieveSensor(int pid, PID_DATA& data);
 	DWORD lastTick;
+	DWORD startTime;
 	int updateInterval;
 	ctb::IOBase* device;
 };

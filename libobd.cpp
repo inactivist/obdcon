@@ -76,7 +76,7 @@ char* COBD::SendCommand(string cmd, char* lookfor, bool readall)
 		cerr << "Incomplete data transmission" << endl;
 		return 0;
 	}
-	Wait(100);
+	Wait(updateInterval);
 	bool echoed = false;
 	cmd.erase(cmd.length() - 1);
 	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
@@ -209,15 +209,18 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		Wait(100);
 	}
 
+	/*
 	PID_DATA data;
-	for (int n = 0; n < 3; n++) {
+	for (int n = 0; n < 5; n++) {
 		cout << "Waiting for sensor data / attempt " << n + 1 << endl;
 		if (RetrieveSensor(PID_RPM, data)) {
 			break;
 		}
 		Wait(3000);
 	}
-	connected = data.value != 0;
+	*/
+	startTime = GetTickCount();
+	connected = true;
 	return connected;
 }
 
@@ -242,7 +245,10 @@ bool COBD::RetrieveSensor(int pid, PID_DATA& data)
 	int value;
 	Wait(updateInterval);
 	if ((value = GetSensorData(pid)) != INVALID_PID_DATA) {
-		updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
+		if (GetTickCount() - startTime < 30000) {
+			updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
+			cout << "Decreasing interval to " << updateInterval << endl;
+		}
 		if (value != INVALID_PID_DATA) {
 			switch (pid) {
 			case PID_LOAD:
@@ -267,19 +273,51 @@ bool COBD::RetrieveSensor(int pid, PID_DATA& data)
 		data.time = GetTickCount();
 		return true;
 	} else {
-		updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
+		if (GetTickCount() - startTime < 30000) {
+			updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
+			cout << "Increasing interval to " << updateInterval << endl;
+			Sleep(updateInterval * 4);
+		}
 		return false;
 	}
 }
 
+#define NUM_PIDS (sizeof(pids) / sizeof(pids[0]))
+
 DWORD COBD::Update()
 {
+	static int count = 0;
+	static int p2index = 0;
+	static int p3index = 0;
 	DWORD ret = 0;
-	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
-		if (pids[i].active) {
+	for (int i = 0; i < NUM_PIDS; i++) {
+		if (pids[i].active && pids[i].priority == 1) {
 			RetrieveSensor(pids[i].pid, pids[i].data);
 			ret++;
 		}
 	}
+	if (count % 2 == 0) {
+		if (p2index >= NUM_PIDS) p2index = 0;
+		for (int i = p2index; i < NUM_PIDS; i++) {
+			if (pids[i].active && pids[i].priority == 2) {
+				RetrieveSensor(pids[i].pid, pids[i].data);
+				ret++;
+				p2index = i + 1;
+				break;
+			}
+		}
+	}
+	if (count % 4 == 1) {
+		if (p3index >= NUM_PIDS) p3index = 0;
+		for (int i = p3index; i < NUM_PIDS; i++) {
+			if (pids[i].active && pids[i].priority == 3) {
+				RetrieveSensor(pids[i].pid, pids[i].data);
+				ret++;
+				p3index = i + 1;
+				break;
+			}
+		}
+	}
+	count++;
 	return ret;
 }
