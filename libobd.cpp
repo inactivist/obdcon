@@ -165,7 +165,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 {
 	int len = strlen(cmd);
 	if(device->Write((char*)cmd, len) != len ) {
-		cerr << "Incomplete data transmission" << endl;
+		cerr << "Unable to send command" << endl;
 		return 0;
 	}
 	Sleep(10);
@@ -188,13 +188,8 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 		offset += bytes;
 		rcvbuf[offset] = 0;
 		char *p = 0;
-		for (int i = offset - 1; i >= 0; i--) {
-			if (rcvbuf[i] == '>' || rcvbuf[i] == '\r') {
-				rcvbuf[i] = 0;
-				eos = true;
-			} else {
-				break;
-			}
+		if (rcvbuf[offset - 1] == '>' || rcvbuf[offset - 1] == '\r') {
+			eos = true;
 		}
 		if (eos && (!answer || strstr(rcvbuf, answer))) {
 			break;
@@ -231,9 +226,8 @@ int COBD::QuerySensor(int id)
 	int data = INVALID_PID_DATA;
 	char cmd[8];
 	char answer[8];
-	sprintf(cmd, "%04X%\r", id);
-	sprintf(answer, "41");
-	char* reply = SendCommand(cmd, answer);
+	sprintf(cmd, "%02X %02X 1\r", (id >> 8) & 0xff, id & 0xff);
+	char* reply = SendCommand(cmd, "41");
 	switch (ProcessResponse(reply)) {
 	case HEX_DATA:
 		for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
@@ -309,7 +303,6 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 	}
 
 	const char* initstr[] = {"atz\r", "ate0\r", "atsp0\r", "atl1\r", "atal\r", "ath1\r"};
-	device->Write("\r", 1);
 	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
 		Wait(0);
 		char* reply = SendCommand(initstr[i]);
