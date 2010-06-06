@@ -37,8 +37,10 @@ typedef struct {
 #define PID_THROTTLE 0x0111 
 #define PID_LOAD 0x0104
 #define PID_COOLANT_TEMP 0x0105
-#define PID_FUEL_SHORT_TERM 0x0106
-#define PID_FUEL_LONG_TERM 0x0107
+#define PID_FUEL_SHORT_TERM_1 0x0106
+#define PID_FUEL_LONG_TERM_1 0x0107
+#define PID_FUEL_SHORT_TERM_2 0x0108
+#define PID_FUEL_LONG_TERM_2 0x0109
 #define PID_INTAKE_TEMP 0x010F
 
 #define INVALID_PID_DATA 0x80000000
@@ -76,7 +78,7 @@ class COBD
 public:
 	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL),updateFlags(PID_RPM | PID_SPEED) {}
 	~COBD() { Uninit(); }
-	int GetSensorData(int id);
+	int QuerySensor(int id);
 	char* SendCommand(const char* cmd, const char* answer = 0);
 	DWORD Update();
 	bool Init(const TCHAR* devname, int baudrate, const char* protocol);
@@ -89,7 +91,7 @@ public:
 	bool running;
 private:
 	int ProcessResponse(char *msg_received);
-	bool RetrieveSensor(int pid, PID_DATA& data);
+	bool RetrieveSensor(int pid);
 	DWORD lastTick;
 	DWORD startTime;
 	int updateInterval;

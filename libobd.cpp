@@ -73,7 +73,6 @@ int COBD::ProcessResponse(char *msg_received)
 {
    int i = 0;
    char *msg = msg_received;
-   int echo_on = TRUE; //echo status
    int is_hex_num = TRUE;
 
    if (!msg || !*msg)
@@ -203,9 +202,9 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 	}
 	if (!strncmp(rcvbuf, cmd, len)) {
 		// strip echo
-		return strdup(rcvbuf + len);
+		return rcvbuf + len;
 	} else {
-		return strdup(rcvbuf);
+		return rcvbuf;
 	}
 }
 
@@ -227,50 +226,46 @@ PID_INFO* COBD::GetPidInfo(const char* name)
 	return 0;
 }
 
-int COBD::GetSensorData(int id)
+int COBD::QuerySensor(int id)
 {
 	int data = INVALID_PID_DATA;
 	char cmd[8];
 	char answer[8];
 	sprintf(cmd, "%04X%\r", id);
-	sprintf(answer, " 41 ");
+	sprintf(answer, "41");
 	char* reply = SendCommand(cmd, answer);
 	switch (ProcessResponse(reply)) {
 	case HEX_DATA:
-		{
-			for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
-				sprintf(answer, "41%02X", pids[i].pid & 0xff);
-				char *p = strstr(reply, answer);
-				if (p) {
-					p += 4;
-					*(p + pids[i].dataBytes * 2) = 0;
-					int value = hex2int(p);
-
-					switch (pids[i].pid) {
-					case PID_LOAD:
-					case PID_THROTTLE:
-						pids[i].data.value = value * 100 / 255;
-						break;
-					case PID_RPM:
-						pids[i].data.value = value / 4;
-						break;
-					case PID_COOLANT_TEMP:
-					case PID_INTAKE_TEMP:
-						pids[i].data.value = value - 40;
-						break;
-					case PID_FUEL_SHORT_TERM:
-					case PID_FUEL_LONG_TERM:
-						pids[i].data.value = (value-128) * 100/128;
-						break;
-					default:
-						pids[i].data.value = value;
-					}
-
+		for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+			sprintf(answer, "41%02X", pids[i].pid & 0xff);
+			char *p = strstr(reply, answer);
+			if (p) {
+				p += 4;
+				*(p + pids[i].dataBytes * 2) = 0;
+				int value = hex2int(p);
+				pids[i].data.time = GetTickCount();
+				switch (pids[i].pid) {
+				case PID_LOAD:
+				case PID_THROTTLE:
+					pids[i].data.value = value * 100 / 255;
+					break;
+				case PID_RPM:
+					pids[i].data.value = value / 4;
+					break;
+				case PID_COOLANT_TEMP:
+				case PID_INTAKE_TEMP:
+					pids[i].data.value = value - 40;
+					break;
+				case PID_FUEL_SHORT_TERM_1:
+				case PID_FUEL_LONG_TERM_1:
+				case PID_FUEL_SHORT_TERM_2:
+				case PID_FUEL_LONG_TERM_2:
+					pids[i].data.value = (value-128) * 100/128;
+					break;
+				default:
+					pids[i].data.value = value;
 				}
 			}
-
-			const PID_INFO* pidInfo = GetPidInfo(id);
-			sprintf(answer, "41%02X", id & 0xff);
 		}
 		break;
 	case ERR_NO_DATA:
@@ -321,9 +316,9 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		if (reply) {
 			switch (ProcessResponse(reply)) {
 			case INTERFACE_ELM327:
+				cout << "ELM327 adapter detected" << endl;
 				break;
 			}
-			cout << reply << endl;
 		} else {
 			cout << "Error sending command " << initstr[i] << endl;
 		}
@@ -351,19 +346,19 @@ void COBD::Wait(int interval)
 	lastTick = tick;
 }
 
-bool COBD::RetrieveSensor(int pid, PID_DATA& data)
+bool COBD::RetrieveSensor(int pid)
 {
 	int value;
+	int elapsed = GetTickCount() - startTime;
 	Wait(updateInterval);
-	if ((value = GetSensorData(pid)) != INVALID_PID_DATA) {
-		//data.time = GetTickCount() - startTime;
-		if (data.time < ADAPT_PERIOD) {
+	if ((value = QuerySensor(pid)) != INVALID_PID_DATA) {
+		if (elapsed < ADAPT_PERIOD) {
 			updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
 			cout << "Decreasing interval to " << updateInterval << endl;
 		}
 		return true;
 	} else {
-		if (GetTickCount() - startTime < ADAPT_PERIOD) {
+		if (elapsed < ADAPT_PERIOD) {
 			updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
 			cout << "Increasing interval to " << updateInterval << endl;
 		}
@@ -382,7 +377,7 @@ DWORD COBD::Update()
 	// retrieve sensors with priority 1
 	for (int i = 0; i < NUM_PIDS; i++) {
 		if (pids[i].active && pids[i].priority == 1) {
-			RetrieveSensor(pids[i].pid, pids[i].data);
+			RetrieveSensor(pids[i].pid);
 			ret++;
 		}
 	}
@@ -392,7 +387,7 @@ DWORD COBD::Update()
 		if (p3index >= NUM_PIDS) p3index = 0;
 		for (int i = p3index; i < NUM_PIDS; i++) {
 			if (pids[i].active && pids[i].priority == 3) {
-				RetrieveSensor(pids[i].pid, pids[i].data);
+				RetrieveSensor(pids[i].pid);
 				ret++;
 				p3index = i + 1;
 				break;
@@ -403,7 +398,7 @@ DWORD COBD::Update()
 	// retrieve sensors with priority 2
 	for (int i = p2index; i < NUM_PIDS; i++) {
 		if (pids[i].active && pids[i].priority == 2) {
-			RetrieveSensor(pids[i].pid, pids[i].data);
+			RetrieveSensor(pids[i].pid);
 			ret++;
 			p2index = i + 1;
 			break;
