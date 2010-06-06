@@ -36,7 +36,6 @@ namespace ctb {
 
     SerialPort::SerialPort()
     {
-	   memset( &m_ov, 0, sizeof( OVERLAPPED ) );
 	   fd = INVALID_HANDLE_VALUE;
 	   m_rtsdtr_state = LinestateNull;
     };
@@ -49,7 +48,6 @@ namespace ctb {
     int SerialPort::CloseDevice()
     {
 	   if(fd != INVALID_HANDLE_VALUE) {
-		  CloseHandle(m_ov.hEvent);
 		  CloseHandle(fd);
 		  fd = INVALID_HANDLE_VALUE;
 	   }
@@ -193,11 +191,7 @@ namespace ctb {
 				    0,		// not shared
 				    NULL,	// default value for object security ?!?
 				    OPEN_EXISTING, // file (device) exists
-#ifdef WINCE
 					0,
-#else
-				    FILE_FLAG_OVERLAPPED,	// asynchron handling
-#endif
 				    NULL); // no more handle flags
 	
 	   if(fd == INVALID_HANDLE_VALUE) {
@@ -298,17 +292,6 @@ namespace ctb {
 	   if(!SetCommState(fd,&dcb))
 		  return -2;
 
-	   // create event for overlapped I/O
-	   // we need a event object, which inform us about the
-	   // end of an operation (here reading device)
-	   m_ov.hEvent = CreateEvent(NULL,// LPSECURITY_ATTRIBUTES lpsa
-						    TRUE, // BOOL fManualReset 
-						    TRUE, // BOOL fInitialState
-						    NULL); // LPTSTR lpszEventName
-	   if(m_ov.hEvent == INVALID_HANDLE_VALUE) {
-		  return -3;
-	   }
-
 	   /* THIS IS OBSOLETE!!!
 	   // event should be triggered, if there are some received data
 	   if(!SetCommMask(fd,EV_RXCHAR))
@@ -343,20 +326,16 @@ namespace ctb {
 			 break;
 		  }
 	   }
-	   if(!ReadFile(fd,buf,len,&read,&m_ov)) {
+	   if(!ReadFile(fd,buf,len,&read,0)) {
 		  // if we use a asynchrone reading, ReadFile gives always
 		  // FALSE
 		  // ERROR_IO_PENDING means ok, other values show an error
-		  if(GetLastError() != ERROR_IO_PENDING) {
-			 // oops..., error in communication
-			 return -1;
-		  }
+		 return -1;
 	   }
 	   else {
 		  // ok, we have read all wanted bytes
 		  return (int)read + m;
 	   }
-	   return 0;
     };
 
     int SerialPort::SendBreak(int duration)
@@ -432,25 +411,17 @@ namespace ctb {
     int SerialPort::Write(char* buf,size_t len)
     {
 	   DWORD write;
-	   if(!WriteFile(fd,buf,len,&write,&m_ov)) {
-		  if(GetLastError() != ERROR_IO_PENDING) {
+	   if(!WriteFile(fd,buf,len,&write,0)) {
 			 return -1;
-		  }
+		}
 		  else {
 			 // VERY IMPORTANT to flush the data out of the internal
 			 // buffer
 			 FlushFileBuffers(fd);
 			 // first you must call GetOverlappedResult, then you
 			 // get the REALLY transmitted count of bytes
-#ifndef WINCE
-			 if(!GetOverlappedResult(fd,&m_ov,&write,TRUE)) {
-				// ooops... something is going wrong
-				return (int)write;
-			 }
-#endif
-		  }
+			return (int)write;
 	   }
-	   return write;
     };
 
 } // namespace ctb

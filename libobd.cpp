@@ -68,64 +68,145 @@ static int hex2int(const char *p)
 	return (int)i;
 }
 
-char* COBD::SendCommand(string cmd, char* lookfor, bool readall)
+// DO NOT TRANSLATE ANY STRINGS IN THIS FUNCTION!
+int COBD::ProcessResponse(char *msg_received)
 {
-	char* rcvbuf = 0;
-	size_t rcvbytes;
-	int len = cmd.length();
-	Wait(0);
-	if(device->Writev( (char*)cmd.c_str(), len, 500 ) != len ) {
+   int i = 0;
+   char *msg = msg_received;
+   int echo_on = TRUE; //echo status
+   int is_hex_num = TRUE;
+
+   if (!msg || !*msg)
+	   return RUBBISH;
+
+   while(*msg && (*msg <= ' '))
+      msg++;
+
+
+   if (strncmp(msg, "SEARCHING...", 12) == 0)
+      msg += 13;
+   else if (strncmp(msg, "BUS INIT: OK", 12) == 0)
+      msg += 13;
+   else if (strncmp(msg, "BUS INIT: ...OK", 15) == 0)
+      msg += 16;
+
+   for(i = 0; *msg; msg++) //loop to copy data
+   {
+      if (*msg > ' ')  // if the character is not a special character or space
+      {
+         if (*msg == '<') // Detect <DATA_ERROR
+         {
+            if (strncmp(msg, "<DATA ERROR", 10) == 0)
+               return DATA_ERROR2;
+            else
+               return RUBBISH;
+         }
+         msg_received[i] = *msg; // rewrite response
+         if (!isxdigit(*msg) && *msg != ':')
+            is_hex_num = FALSE;
+         i++;
+      }
+      else if (((*msg == '\n') || (*msg == '\r')) && (msg_received[i-1] != SPECIAL_DELIMITER)) // if the character is a CR or LF
+         msg_received[i++] = SPECIAL_DELIMITER; // replace CR with SPECIAL_DELIMITER
+   }
+   
+   if (i > 0)
+      if (msg_received[i-1] == SPECIAL_DELIMITER)
+         i--;
+   msg_received[i] = '\0'; // terminate the string
+
+   if (is_hex_num)
+      return HEX_DATA;
+
+   if (strstr(msg_received, "NODATA"))
+      return ERR_NO_DATA;
+   if (strstr(msg_received, "UNABLETOCONNECT"))
+      return UNABLE_TO_CONNECT;
+   if (strcmp(msg_received + strlen(msg_received) - 7, "BUSBUSY") == 0)
+      return BUS_BUSY;
+   if (strcmp(msg_received + strlen(msg_received) - 9, "DATAERROR") == 0)
+      return DATA_ERROR;
+   if (strcmp(msg_received + strlen(msg_received) - 8, "BUSERROR") == 0 ||
+       strcmp(msg_received + strlen(msg_received) - 7, "FBERROR") == 0)
+      return BUS_ERROR;
+   if (strcmp(msg_received + strlen(msg_received) - 8, "CANERROR") == 0)
+      return CAN_ERROR;
+   if (strcmp(msg_received + strlen(msg_received) - 10, "BUFFERFULL") == 0)
+      return BUFFER_FULL;
+   if (strncmp(msg_received, "BUSINIT:", 8) == 0)
+   {
+      if (strcmp(msg_received + strlen(msg_received) - 5, "ERROR") == 0)
+         return BUS_INIT_ERROR;
+      else
+         return SERIAL_ERROR;
+   }
+   if (strcmp(msg_received, "?") == 0)
+      return UNKNOWN_CMD;
+   if (strncmp(msg_received, "ELM320", 6) == 0)
+      return INTERFACE_ELM320;
+   if (strncmp(msg_received, "ELM322", 6) == 0)
+      return INTERFACE_ELM322;
+   if (strncmp(msg_received, "ELM323", 6) == 0)
+      return INTERFACE_ELM323;
+   if (strncmp(msg_received, "ELM327", 6) == 0)
+      return INTERFACE_ELM327;
+   if (strncmp(msg_received, "OBDLink", 7) == 0 ||
+       strncmp(msg_received, "STN1000", 7) == 0 ||
+       strncmp(msg_received, "STN11", 5) == 0)
+      return INTERFACE_OBDLINK;
+   if (strncmp(msg_received, "SCANTOOL.NET", 12) == 0)
+      return STN_MFR_STRING;
+   if (strcmp(msg_received, "OBDIItoRS232Interpreter") == 0)
+      return ELM_MFR_STRING;
+   
+   return RUBBISH;
+}
+
+char* COBD::SendCommand(const char* cmd, const char* answer)
+{
+	int len = strlen(cmd);
+	if(device->Write((char*)cmd, len) != len ) {
 		cerr << "Incomplete data transmission" << endl;
 		return 0;
 	}
-	bool echoed = false;
-	cmd.erase(cmd.length() - 1);
-	Wait(updateInterval);
-	int ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
-	if (ret == -1) {
-		cerr << "Communication error" << endl;
-		return 0;
-	}
-	if (ret == 0) {
-		// first timeout
-		if( device->Writev( (char*)"\r", 1, 500 ) != 1 ) {
-			return 0;
-		}
-		rcvbuf = 0;
-		ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000);
-		if (ret == 0) {
-			cerr << "Communication timeout" << endl;
-		}
-		return 0;
-	}
-	if (!rcvbuf) {
-		return 0;
-	}
-	do {
-		char *p;
-		if (lookfor && (p = strstr(rcvbuf, lookfor))) {
-			return p;
-		}
-		if (!lookfor && !readall) {
-			if (strstr(rcvbuf, cmd.c_str())) {
-				echoed = true;
+	Sleep(10);
+	int offset = 0;
+	int retry = 0;
+	bool eos = false;
+	for(;;) {
+		int bytes = device->Read(rcvbuf + offset, sizeof(rcvbuf) - offset);
+		if (bytes < 0) return 0;
+		if (bytes == 0) {
+			if (++retry < 300) {
+				Sleep(10);
 				continue;
-			}
-			if (echoed)
-				return rcvbuf;
-		}
-		if (!strncmp(rcvbuf, "SEARCHING", 9)) {
-			rcvbuf = 0;
-			if (device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 3000) == 1) {
-				continue;
+			} else if (offset == 0) {
+				return 0;
 			} else {
-				if (strstr(rcvbuf, "NO DATA"))
-					cout << rcvbuf << endl;
 				break;
 			}
 		}
-	} while ((ret = device->ReadUntilEOS(rcvbuf, &rcvbytes, "\r", 1000)) == 1);
-	return rcvbuf;
+		offset += bytes;
+		rcvbuf[offset] = 0;
+		char *p = 0;
+		for (int i = offset - 1; i >= 0; i--) {
+			if (rcvbuf[i] == '>' || rcvbuf[i] == '\r') {
+				rcvbuf[i] = 0;
+				eos = true;
+			} else {
+				break;
+			}
+		}
+		if (eos && (!answer || strstr(rcvbuf, answer))) {
+			break;
+		}
+	}
+	if (!strncmp(rcvbuf, cmd, len)) {
+		// strip echo
+		return strdup(rcvbuf + len);
+	} else {
+		return strdup(rcvbuf);
+	}
 }
 
 PID_INFO* COBD::GetPidInfo(int pid)
@@ -152,24 +233,56 @@ int COBD::GetSensorData(int id)
 	char cmd[8];
 	char answer[8];
 	sprintf(cmd, "%04X%\r", id);
-	sprintf(answer, "41 %02X", id & 0xff);
+	sprintf(answer, " 41 ");
 	char* reply = SendCommand(cmd, answer);
-	if (!reply) {
-		// trying to recover a broken session
-		SendCommand("\r", 0, true);
-		reply = SendCommand(cmd, answer);
-	}
-	if (reply) {
-		const PID_INFO* pidInfo = GetPidInfo(id);
-		if (pidInfo && pidInfo->dataBytes > 1) {
-			if (strlen(reply) >= 11 && !strncmp(reply, answer, 5)) {
-				data = (hex2int(reply + 6) << 8) + hex2int(reply + 9);
+	switch (ProcessResponse(reply)) {
+	case HEX_DATA:
+		{
+			for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+				sprintf(answer, "41%02X", pids[i].pid & 0xff);
+				char *p = strstr(reply, answer);
+				if (p) {
+					p += 4;
+					*(p + pids[i].dataBytes * 2) = 0;
+					int value = hex2int(p);
+
+					switch (pids[i].pid) {
+					case PID_LOAD:
+					case PID_THROTTLE:
+						pids[i].data.value = value * 100 / 255;
+						break;
+					case PID_RPM:
+						pids[i].data.value = value / 4;
+						break;
+					case PID_COOLANT_TEMP:
+					case PID_INTAKE_TEMP:
+						pids[i].data.value = value - 40;
+						break;
+					case PID_FUEL_SHORT_TERM:
+					case PID_FUEL_LONG_TERM:
+						pids[i].data.value = (value-128) * 100/128;
+						break;
+					default:
+						pids[i].data.value = value;
+					}
+
+				}
 			}
-		} else {
-			if (strlen(reply) >= 8 && !strncmp(reply, answer, 5)) {
-				data = hex2int(reply + 6);
-			}
+
+			const PID_INFO* pidInfo = GetPidInfo(id);
+			sprintf(answer, "41%02X", id & 0xff);
 		}
+		break;
+	case ERR_NO_DATA:
+		cout << "No data" << endl;
+		Sleep(3000);
+		break;
+	case UNABLE_TO_CONNECT:
+		cout << "Unable to connect to vehcile" << endl;
+		Sleep(3000);
+		break;
+	default:
+		Sleep(1000);
 	}
 	return data;
 }
@@ -200,13 +313,19 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		pids[i].data.value = 0;
 	}
 
-	char* reply;
-	const char* initstr[] = {"atz\r", "atsp0\r", "atl1\r", "atal\r", "ate0\r", "ath1\r"};
+	const char* initstr[] = {"atz\r", "ate0\r", "atsp0\r", "atl1\r", "atal\r", "ath1\r"};
+	device->Write("\r", 1);
 	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
 		Wait(0);
-		reply = SendCommand(initstr[i]);
+		char* reply = SendCommand(initstr[i]);
 		if (reply) {
+			switch (ProcessResponse(reply)) {
+			case INTERFACE_ELM327:
+				break;
+			}
 			cout << reply << endl;
+		} else {
+			cout << "Error sending command " << initstr[i] << endl;
 		}
 		Wait(100);
 	}
@@ -237,36 +356,16 @@ bool COBD::RetrieveSensor(int pid, PID_DATA& data)
 	int value;
 	Wait(updateInterval);
 	if ((value = GetSensorData(pid)) != INVALID_PID_DATA) {
-		data.time = GetTickCount() - startTime;
+		//data.time = GetTickCount() - startTime;
 		if (data.time < ADAPT_PERIOD) {
 			updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
 			cout << "Decreasing interval to " << updateInterval << endl;
-		}
-		switch (pid) {
-		case PID_LOAD:
-		case PID_THROTTLE:
-			data.value = value * 100 / 255;
-			break;
-		case PID_RPM:
-			data.value = value / 4;
-			break;
-		case PID_COOLANT_TEMP:
-		case PID_INTAKE_TEMP:
-			data.value = value - 40;
-			break;
-		case PID_FUEL_SHORT_TERM:
-		case PID_FUEL_LONG_TERM:
-			data.value = (value-128) * 100/128;
-			break;
-		default:
-			data.value = value;
 		}
 		return true;
 	} else {
 		if (GetTickCount() - startTime < ADAPT_PERIOD) {
 			updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
 			cout << "Increasing interval to " << updateInterval << endl;
-			Sleep(updateInterval * 4);
 		}
 		return false;
 	}
