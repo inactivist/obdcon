@@ -178,7 +178,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 		int bytes = device->Read(rcvbuf + offset, 1);
 		if (bytes < 0) return 0;
 		if (bytes == 0) {
-			if (++retry < 300) {
+			if (++retry < 100) {
 				Sleep(10);
 				continue;
 			} else if (offset == 0) {
@@ -189,6 +189,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 		}
 		offset += bytes;
 		rcvbuf[offset] = 0;
+		retry = 0;
 		if (answer) {
 			if (!v) {
 				char *p;
@@ -329,18 +330,14 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		}
 		Wait(100);
 	}
-	char* reply = SendCommand("01 00 1");
+	char* reply = SendCommand("0100 1");
 	if (reply) cout << "Valid PIDS: " << reply << endl;
-	Wait(100);
-	//reply = SendCommand("09 02 5");
-	//if (reply) cout << "VIN: " << reply << endl;
 
 	for (int i = 0; i < 10; i++) {
-		Wait(0);
+		Wait(3000);
 		cout << "Wait for data attempt " << i + 1 << endl;
 		if (RetrieveSensor(PID_RPM))
 			break;
-		Wait(3000);
 	}
 	startTime = GetTickCount();
 	connected = true;
@@ -349,10 +346,9 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 
 void COBD::Wait(int interval)
 {
-	DWORD tick = GetTickCount();
 	if (interval > 0) {
 		if (lastTick) {
-			int timeToWait = interval - (tick - lastTick);
+			int timeToWait = interval - (GetTickCount() - lastTick);
 			if (timeToWait > 0) {
 				Sleep(timeToWait);
 			}
@@ -360,7 +356,7 @@ void COBD::Wait(int interval)
 			Sleep(interval);
 		}
 	}
-	lastTick = tick;
+	lastTick = GetTickCount();
 }
 
 static int failures = 0;

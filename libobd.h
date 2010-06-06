@@ -77,7 +77,7 @@ class COBD;
 class COBD
 {
 public:
-	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL),updateFlags(PID_RPM | PID_SPEED) {}
+	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL) {}
 	~COBD() { Uninit(); }
 	int QuerySensor(int id);
 	char* SendCommand(const char* cmd, const char* answer = 0, int dataBytes = 0);
@@ -88,7 +88,6 @@ public:
 	static PID_INFO* GetPidInfo(int pid);
 	static PID_INFO* GetPidInfo(const char* name);
 	bool connected;
-	DWORD updateFlags;
 	bool running;
 private:
 	int ProcessResponse(char *msg_received);
