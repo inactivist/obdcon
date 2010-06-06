@@ -12,11 +12,11 @@
 #include <string>
 #include "ctb.h"
 
-#define QUERY_INTERVAL 200
+#define QUERY_INTERVAL 300
 #define QUERY_INTERVAL_MIN 50
 #define QUERY_INTERVAL_MAX 500
 #define QUERY_INTERVAL_STEP 25
-#define ADAPT_PERIOD  30000 /* ms */
+#define ADAPT_PERIOD  60000 /* ms */
 
 typedef struct {
 	DWORD time;
@@ -60,7 +60,8 @@ typedef struct {
 #define BUFFER_FULL        9
 #define SERIAL_ERROR       10
 #define UNKNOWN_CMD        11
-#define RUBBISH            12
+#define BUS_STOPPED        12
+#define RUBBISH            13
 
 #define INTERFACE_ID       13
 #define INTERFACE_ELM320   13
@@ -79,7 +80,7 @@ public:
 	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL),updateFlags(PID_RPM | PID_SPEED) {}
 	~COBD() { Uninit(); }
 	int QuerySensor(int id);
-	char* SendCommand(const char* cmd, const char* answer = 0);
+	char* SendCommand(const char* cmd, const char* answer = 0, int dataBytes = 0);
 	DWORD Update();
 	bool Init(const TCHAR* devname, int baudrate, const char* protocol);
 	void Uninit();

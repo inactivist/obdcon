@@ -75,19 +75,23 @@ int COBD::ProcessResponse(char *msg_received)
    char *msg = msg_received;
    int is_hex_num = TRUE;
 
-   if (!msg || !*msg)
+   if (!msg)
 	   return RUBBISH;
 
    while(*msg && (*msg <= ' '))
       msg++;
 
-
-   if (strncmp(msg, "SEARCHING...", 12) == 0)
+   if (*msg == '>')
+	   msg ++;
+   else if (strncmp(msg, "SEARCHING...", 12) == 0)
       msg += 13;
    else if (strncmp(msg, "BUS INIT: OK", 12) == 0)
       msg += 13;
    else if (strncmp(msg, "BUS INIT: ...OK", 15) == 0)
       msg += 16;
+
+	if (!*msg)
+		return RUBBISH;
 
    for(i = 0; *msg; msg++) //loop to copy data
    {
@@ -101,7 +105,7 @@ int COBD::ProcessResponse(char *msg_received)
                return RUBBISH;
          }
          msg_received[i] = *msg; // rewrite response
-         if (!isxdigit(*msg) && *msg != ':')
+         if (!isxdigit(*msg) && *msg != ':' && *msg != '>')
             is_hex_num = FALSE;
          i++;
       }
@@ -153,15 +157,13 @@ int COBD::ProcessResponse(char *msg_received)
        strncmp(msg_received, "STN1000", 7) == 0 ||
        strncmp(msg_received, "STN11", 5) == 0)
       return INTERFACE_OBDLINK;
-   if (strncmp(msg_received, "SCANTOOL.NET", 12) == 0)
-      return STN_MFR_STRING;
    if (strcmp(msg_received, "OBDIItoRS232Interpreter") == 0)
       return ELM_MFR_STRING;
    
    return RUBBISH;
 }
 
-char* COBD::SendCommand(const char* cmd, const char* answer)
+char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 {
 	int len = strlen(cmd);
 	if(device->Write((char*)cmd, len) != len ) {
@@ -171,9 +173,9 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 	Sleep(10);
 	int offset = 0;
 	int retry = 0;
-	bool eos = false;
+	char* v = 0;
 	for(;;) {
-		int bytes = device->Read(rcvbuf + offset, sizeof(rcvbuf) - offset);
+		int bytes = device->Read(rcvbuf + offset, 1);
 		if (bytes < 0) return 0;
 		if (bytes == 0) {
 			if (++retry < 300) {
@@ -187,11 +189,17 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 		}
 		offset += bytes;
 		rcvbuf[offset] = 0;
-		char *p = 0;
-		if (rcvbuf[offset - 1] == '>' || rcvbuf[offset - 1] == '\r') {
-			eos = true;
-		}
-		if (eos && (!answer || strstr(rcvbuf, answer))) {
+		if (answer) {
+			if (!v) {
+				char *p;
+				if ((p = strstr(rcvbuf, answer)) && (int)strlen(p) >= dataBytes) {
+					v = p;
+				}
+			} else {
+				if (strchr(v, '\r'))
+					break;
+			}
+		} else if (rcvbuf[offset - 1] == '>' || rcvbuf[offset - 1] == '\r') {
 			break;
 		}
 	}
@@ -223,11 +231,13 @@ PID_INFO* COBD::GetPidInfo(const char* name)
 
 int COBD::QuerySensor(int id)
 {
-	int data = INVALID_PID_DATA;
-	char cmd[8];
+	int value = INVALID_PID_DATA;
+	char cmd[16];
 	char answer[8];
-	sprintf(cmd, "%02X %02X 1\r", (id >> 8) & 0xff, id & 0xff);
-	char* reply = SendCommand(cmd, "41");
+	sprintf(cmd, "%04X 1\r", id);
+	sprintf(answer, "41 %02X", id & 0xff);
+	PID_INFO* pid = GetPidInfo(id);
+	char* reply = SendCommand(cmd, answer, (pid->dataBytes + 2) * 3 - 1);
 	switch (ProcessResponse(reply)) {
 	case HEX_DATA:
 		for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
@@ -236,7 +246,7 @@ int COBD::QuerySensor(int id)
 			if (p) {
 				p += 4;
 				*(p + pids[i].dataBytes * 2) = 0;
-				int value = hex2int(p);
+				value = hex2int(p);
 				pids[i].data.time = GetTickCount();
 				switch (pids[i].pid) {
 				case PID_LOAD:
@@ -270,10 +280,12 @@ int COBD::QuerySensor(int id)
 		cout << "Unable to connect to vehcile" << endl;
 		Sleep(3000);
 		break;
-	default:
-		Sleep(1000);
+	case BUS_STOPPED:
+		cout << "Stopped" << endl;
+		Sleep(3000);
+		break;
 	}
-	return data;
+	return value;
 }
 
 void COBD::Uninit()
@@ -317,7 +329,19 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 		}
 		Wait(100);
 	}
+	char* reply = SendCommand("01 00 1");
+	if (reply) cout << "Valid PIDS: " << reply << endl;
+	Wait(100);
+	//reply = SendCommand("09 02 5");
+	//if (reply) cout << "VIN: " << reply << endl;
 
+	for (int i = 0; i < 10; i++) {
+		Wait(0);
+		cout << "Wait for data attempt " << i + 1 << endl;
+		if (RetrieveSensor(PID_RPM))
+			break;
+		Wait(3000);
+	}
 	startTime = GetTickCount();
 	connected = true;
 	return connected;
@@ -339,22 +363,19 @@ void COBD::Wait(int interval)
 	lastTick = tick;
 }
 
+static int failures = 0;
+
 bool COBD::RetrieveSensor(int pid)
 {
 	int value;
-	int elapsed = GetTickCount() - startTime;
 	Wait(updateInterval);
 	if ((value = QuerySensor(pid)) != INVALID_PID_DATA) {
-		if (elapsed < ADAPT_PERIOD) {
-			updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
-			cout << "Decreasing interval to " << updateInterval << endl;
-		}
+		updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
 		return true;
 	} else {
-		if (elapsed < ADAPT_PERIOD) {
-			updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
-			cout << "Increasing interval to " << updateInterval << endl;
-		}
+		updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
+		failures++;
+		cout << "Failure: " << failures << endl;
 		return false;
 	}
 }

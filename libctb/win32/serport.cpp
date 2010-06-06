@@ -316,16 +316,6 @@ namespace ctb {
     int SerialPort::Read(char* buf,size_t len)
     {
 	   DWORD read;
-	   int m = m_fifo->items();
-	   while(len) {
-		  if(m_fifo->get(buf) == 1) {
-			 len--;
-			 buf++;
-		  }
-		  else {
-			 break;
-		  }
-	   }
 	   if(!ReadFile(fd,buf,len,&read,0)) {
 		  // if we use a asynchrone reading, ReadFile gives always
 		  // FALSE
@@ -334,7 +324,7 @@ namespace ctb {
 	   }
 	   else {
 		  // ok, we have read all wanted bytes
-		  return (int)read + m;
+		  return (int)read;
 	   }
     };
 
