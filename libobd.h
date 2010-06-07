@@ -12,7 +12,7 @@
 #include <string>
 #include "ctb.h"
 
-#define QUERY_INTERVAL 300
+#define QUERY_INTERVAL 500
 #define QUERY_INTERVAL_MIN 50
 #define QUERY_INTERVAL_MAX 500
 #define QUERY_INTERVAL_STEP 25

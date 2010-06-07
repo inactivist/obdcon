@@ -360,19 +360,31 @@ void COBD::Wait(int interval)
 }
 
 static int failures = 0;
+static int minInterval = QUERY_INTERVAL_MIN;
 
 bool COBD::RetrieveSensor(int pid)
 {
 	int value;
 	Wait(updateInterval);
-	if ((value = QuerySensor(pid)) != INVALID_PID_DATA) {
-		updateInterval = max(QUERY_INTERVAL_MIN, updateInterval - QUERY_INTERVAL_STEP);
-		return true;
+	value = QuerySensor(pid);
+	if (GetTickCount() - startTime < 30000) {
+		if (value != INVALID_PID_DATA) {
+			failures = 0;
+			updateInterval = max(minInterval, updateInterval - QUERY_INTERVAL_STEP);
+			return true;
+		} else {
+			failures++;
+			if (updateInterval <= minInterval && failures >= 2) {
+				minInterval += 10;
+				updateInterval = minInterval;
+			} else { 
+				updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
+			}
+			cout << "Increasing interval to " << updateInterval << endl;
+			return false;
+		}
 	} else {
-		updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
-		failures++;
-		cout << "Failure: " << failures << endl;
-		return false;
+		return value != INVALID_PID_DATA;
 	}
 }
 
