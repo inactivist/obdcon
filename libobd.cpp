@@ -170,7 +170,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 		cerr << "Unable to send command" << endl;
 		return 0;
 	}
-	Sleep(10);
+	Sleep(queryInterval / 4);
 	int offset = 0;
 	int retry = 0;
 	char* v = 0;
@@ -187,6 +187,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 				break;
 			}
 		}
+		if (rcvbuf[offset] == ' ') continue;
 		offset += bytes;
 		rcvbuf[offset] = 0;
 		retry = 0;
@@ -236,7 +237,7 @@ int COBD::QuerySensor(int id)
 	char cmd[16];
 	char answer[8];
 	sprintf(cmd, "%04X 1\r", id);
-	sprintf(answer, "41 %02X", id & 0xff);
+	sprintf(answer, "41%02X", id & 0xff);
 	PID_INFO* pid = GetPidInfo(id);
 	char* reply = SendCommand(cmd, answer, (pid->dataBytes + 2) * 3 - 1);
 	switch (ProcessResponse(reply)) {
@@ -250,7 +251,7 @@ int COBD::QuerySensor(int id)
 				value = hex2int(p);
 				pids[i].data.time = GetTickCount();
 				switch (pids[i].pid) {
-				case PID_LOAD:
+				case PID_ENGINE_LOAD:
 				case PID_THROTTLE:
 					pids[i].data.value = value * 100 / 255;
 					break;
@@ -297,10 +298,17 @@ void COBD::Uninit()
 	}
 }
 
-bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
+bool COBD::Init()
 {
 	ctb::SerialPort* serialPort = new ctb::SerialPort();
- 	if( serialPort->Open( devname, baudrate, 
+#ifdef WINCE
+	const TCHAR* portfmt = TEXT("COM%d:");
+#else
+    const char* portfmt = "com%d";
+#endif
+	TCHAR portname[8];
+	wsprintf(portname, portfmt, comport);
+ 	if( serialPort->Open(portname, baudrate, 
 					protocol, 
 					ctb::SerialPort::NoFlowControl ) >= 0 ) {
 
@@ -334,7 +342,7 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 	if (reply) cout << "Valid PIDS: " << reply << endl;
 
 	for (int i = 0; i < 10; i++) {
-		Wait(3000);
+		Wait(5000);
 		cout << "Wait for data attempt " << i + 1 << endl;
 		if (RetrieveSensor(PID_RPM))
 			break;
@@ -344,13 +352,15 @@ bool COBD::Init(const TCHAR* devname, int baudrate, const char* protocol)
 	return connected;
 }
 
-void COBD::Wait(int interval)
+void COBD::Wait(int interval, int minimum)
 {
 	if (interval > 0) {
 		if (lastTick) {
 			int timeToWait = interval - (GetTickCount() - lastTick);
 			if (timeToWait > 0) {
 				Sleep(timeToWait);
+			} else {
+				Sleep(minimum);
 			}
 		} else {
 			Sleep(interval);
@@ -359,33 +369,32 @@ void COBD::Wait(int interval)
 	lastTick = GetTickCount();
 }
 
-static int failures = 0;
-static int minInterval = QUERY_INTERVAL_MIN;
-
 bool COBD::RetrieveSensor(int pid)
 {
 	int value;
-	Wait(updateInterval);
+	Wait(queryInterval);
 	value = QuerySensor(pid);
+#if 0
 	if (GetTickCount() - startTime < 30000) {
 		if (value != INVALID_PID_DATA) {
 			failures = 0;
-			updateInterval = max(minInterval, updateInterval - QUERY_INTERVAL_STEP);
+			queryInterval = max(minInterval, queryInterval - QUERY_INTERVAL_STEP);
 			return true;
 		} else {
 			failures++;
-			if (updateInterval <= minInterval && failures >= 2) {
+			if (queryInterval <= minInterval && failures >= 2) {
 				minInterval += 10;
-				updateInterval = minInterval;
+				queryInterval = minInterval;
 			} else { 
-				updateInterval = min(QUERY_INTERVAL_MAX, updateInterval + QUERY_INTERVAL_STEP);
+				queryInterval = min(QUERY_INTERVAL_MAX, queryInterval + QUERY_INTERVAL_STEP);
 			}
-			cout << "Increasing interval to " << updateInterval << endl;
+			cout << "Increasing interval to " << queryInterval << endl;
 			return false;
 		}
 	} else {
-		return value != INVALID_PID_DATA;
 	}
+#endif
+	return value != INVALID_PID_DATA;
 }
 
 #define NUM_PIDS (sizeof(pids) / sizeof(pids[0]))

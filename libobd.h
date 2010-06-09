@@ -12,10 +12,10 @@
 #include <string>
 #include "ctb.h"
 
-#define QUERY_INTERVAL 500
+#define QUERY_INTERVAL 200
 #define QUERY_INTERVAL_MIN 50
 #define QUERY_INTERVAL_MAX 500
-#define QUERY_INTERVAL_STEP 25
+#define QUERY_INTERVAL_STEP 50
 #define ADAPT_PERIOD  60000 /* ms */
 
 typedef struct {
@@ -35,7 +35,7 @@ typedef struct {
 #define PID_RPM 0x010C
 #define PID_SPEED 0x010D
 #define PID_THROTTLE 0x0111 
-#define PID_LOAD 0x0104
+#define PID_ENGINE_LOAD 0x0104
 #define PID_COOLANT_TEMP 0x0105
 #define PID_FUEL_SHORT_TERM_1 0x0106
 #define PID_FUEL_LONG_TERM_1 0x0107
@@ -77,16 +77,25 @@ class COBD;
 class COBD
 {
 public:
-	COBD():connected(false),running(true),lastTick(0),updateInterval(QUERY_INTERVAL) {}
-	~COBD() { Uninit(); }
+	COBD():connected(false),running(true),lastTick(0),comport(4),baudrate(115200),queryInterval(QUERY_INTERVAL)
+	{
+		memset(protocol, 0, sizeof(protocol));
+	}
+	~COBD() { 
+		Uninit();
+	}
 	int QuerySensor(int id);
 	char* SendCommand(const char* cmd, const char* answer = 0, int dataBytes = 0);
 	DWORD Update();
-	bool Init(const TCHAR* devname, int baudrate, const char* protocol);
+	bool Init();
 	void Uninit();
-	void Wait(int interval);
+	void Wait(int interval, int minimum = 10);
 	static PID_INFO* GetPidInfo(int pid);
 	static PID_INFO* GetPidInfo(const char* name);
+	int queryInterval;
+	int comport;
+	int baudrate;
+	char protocol[4];
 	bool connected;
 	bool running;
 private:
@@ -94,7 +103,6 @@ private:
 	bool RetrieveSensor(int pid);
 	DWORD lastTick;
 	DWORD startTime;
-	int updateInterval;
 	ctb::IOBase* device;
 	char rcvbuf[256];
 };
