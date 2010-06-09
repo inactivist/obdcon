@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <time.h>
 #include "libobd.h"
 
 using namespace ctb;
@@ -240,6 +241,10 @@ int COBD::QuerySensor(int id)
 	sprintf(answer, "41%02X", id & 0xff);
 	PID_INFO* pid = GetPidInfo(id);
 	char* reply = SendCommand(cmd, answer, (pid->dataBytes + 2) * 3 - 1);
+	if (fplog && reply) {
+		fprintf(fplog, "%d %s\\r\n", GetTickCount() - startTime, reply);
+		fflush(fplog);
+	}
 	switch (ProcessResponse(reply)) {
 	case HEX_DATA:
 		for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
@@ -348,8 +353,7 @@ bool COBD::Init()
 			break;
 	}
 	startTime = GetTickCount();
-	connected = true;
-	return connected;
+	return true;
 }
 
 void COBD::Wait(int interval, int minimum)
@@ -437,4 +441,43 @@ DWORD COBD::Update()
 	}
 	count++;
 	return ret;
+}
+
+int IsFileExist(const char* filename)
+{
+	FILE *fp = fopen(filename, "rb");
+	if (fp) {
+		fclose(fp);
+		return 1;
+	}
+	return 0;
+}
+
+bool COBD::StartLogging()
+{
+	char path[MAX_PATH];
+	time_t tm=time(NULL);
+	struct tm *btm;
+	btm=gmtime(&tm);
+
+	int n = GetModuleFileName(GetModuleHandle(NULL), path, MAX_PATH);
+	for (; n > 0; n--) {
+		if (path[n] == '\\') {
+			path[n + 1] = 0;
+			break;
+		}
+	}
+	strcat(path, "obddata-");
+	
+	char *p = path + strlen(path);
+	sprintf(p, "%02d%02d%02d%02d", btm->tm_mon + 1, btm->tm_mday, btm->tm_hour, btm->tm_min);
+	strcat(path, ".log");
+	fplog = fopen(path, "wb");
+	return fplog != 0;
+}
+
+void COBD::StopLogging()
+{
+	fclose(fplog);
+	fplog = 0;
 }

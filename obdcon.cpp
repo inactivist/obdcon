@@ -37,16 +37,17 @@ int main(int argc, char* argv[])
     int quit = 0;
     int val;
 	COBD obd;
-
+	
     while ( ( val=getopt( argc, argv, (char*)options ) ) != EOF ) {
 	   switch ( val ) {
-	   case 'b' : baudrate = strtol( optarg, NULL, 10 ); break;
-	   case 'd' : devname = optarg; break;
+	   case 'b' : obd.baudrate = atoi(optarg); break;
+	   case 'd' : obd.comport = atoi(optarg); break;
 	   case 'h' : cerr << helpMessage << endl; exit( 0 );
 	   }
     }
 
-	if (!obd.Init(devname, baudrate, protocol)) {
+	obd.StartLogging();
+	if (!obd.Init()) {
 		cerr << "Error opening " << devname;
 		return -1;
 	}
@@ -59,6 +60,7 @@ int main(int argc, char* argv[])
 	pid[0]->active = 1;
 	pid[1]->active = 1;
 	pid[2]->active = 1;
+
 	for (int n = 0; ; n++) {
 		obd.Update();
 		cout << "RPM: " << pid[0]->data.value

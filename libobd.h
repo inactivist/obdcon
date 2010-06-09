@@ -77,13 +77,15 @@ class COBD;
 class COBD
 {
 public:
-	COBD():connected(false),running(true),lastTick(0),comport(4),baudrate(115200),queryInterval(QUERY_INTERVAL)
+	COBD():device(0),running(true),lastTick(0),comport(4),baudrate(115200),queryInterval(QUERY_INTERVAL),fplog(0)
 	{
 		memset(protocol, 0, sizeof(protocol));
 	}
 	~COBD() { 
 		Uninit();
 	}
+	bool StartLogging();
+	void StopLogging();
 	int QuerySensor(int id);
 	char* SendCommand(const char* cmd, const char* answer = 0, int dataBytes = 0);
 	DWORD Update();
@@ -96,7 +98,6 @@ public:
 	int comport;
 	int baudrate;
 	char protocol[4];
-	bool connected;
 	bool running;
 private:
 	int ProcessResponse(char *msg_received);
@@ -105,6 +106,7 @@ private:
 	DWORD startTime;
 	ctb::IOBase* device;
 	char rcvbuf[256];
+	FILE* fplog;
 };
 
 #ifdef WINCE
