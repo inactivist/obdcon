@@ -87,7 +87,7 @@ public:
 	bool StartLogging();
 	void StopLogging();
 	int QuerySensor(int id);
-	char* SendCommand(const char* cmd, const char* answer = 0, int dataBytes = 0);
+	char* SendCommand(const char* cmd);
 	DWORD Update();
 	bool Init();
 	void Uninit();
@@ -100,6 +100,7 @@ public:
 	char protocol[4];
 	bool running;
 private:
+	int RetrieveValue(int pid_l, char* data);
 	int ProcessResponse(char *msg_received);
 	bool RetrieveSensor(int pid);
 	DWORD lastTick;

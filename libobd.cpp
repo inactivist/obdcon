@@ -164,18 +164,69 @@ int COBD::ProcessResponse(char *msg_received)
    return RUBBISH;
 }
 
-char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
+int COBD::RetrieveValue(int pid_l, char* data)
+{
+	int value = INVALID_PID_DATA;
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		if ((pids[i].pid & 0xff) == pid_l) {
+			if (pids[i].dataBytes == 1)
+				value = hex2int(data);
+			else
+				value = (hex2int(data) << 8)+ hex2int(data + 3);
+			pids[i].data.time = GetTickCount();
+			switch (pids[i].pid) {
+			case PID_ENGINE_LOAD:
+			case PID_THROTTLE:
+				pids[i].data.value = value * 100 / 255;
+				break;
+			case PID_RPM:
+				pids[i].data.value = value / 4;
+				break;
+			case PID_COOLANT_TEMP:
+			case PID_INTAKE_TEMP:
+				pids[i].data.value = value - 40;
+				break;
+			case PID_FUEL_SHORT_TERM_1:
+			case PID_FUEL_LONG_TERM_1:
+			case PID_FUEL_SHORT_TERM_2:
+			case PID_FUEL_LONG_TERM_2:
+				pids[i].data.value = (value-128) * 100/128;
+				break;
+			default:
+				pids[i].data.value = value;
+			}
+		}
+	}
+	return value;
+}
+
+char* COBD::SendCommand(const char* cmd)
 {
 	int len = strlen(cmd);
 	if(device->Write((char*)cmd, len) != len ) {
 		cerr << "Unable to send command" << endl;
 		return 0;
 	}
-	Sleep(queryInterval / 4);
-	int offset = 0;
 	int retry = 0;
 	char* v = 0;
-	for(;;) {
+	memset(rcvbuf, 0, sizeof(rcvbuf));
+	if (fplog) {
+		fprintf(fplog, "===%d===\r\n", GetTickCount() - startTime);
+	}
+	int offset = device->Read(rcvbuf, sizeof(rcvbuf));
+	if (offset <= 0) return 0;
+	char* parse = rcvbuf;
+	while (offset < sizeof(rcvbuf)) {
+		char *p = strstr(parse, "7E8");
+		int pid_l;
+		if (p && p[7] == '4' && p[8] == '1' && (pid_l = atoi(p + 10))) {
+			parse = p + 13;
+			RetrieveValue(pid_l, parse);
+			continue;
+		} else if (strchr(parse, '>')) {
+			break;
+		}
+		// read till prompt character appears
 		int bytes = device->Read(rcvbuf + offset, 1);
 		if (bytes < 0) return 0;
 		if (bytes == 0) {
@@ -188,30 +239,13 @@ char* COBD::SendCommand(const char* cmd, const char* answer, int dataBytes)
 				break;
 			}
 		}
-		if (rcvbuf[offset] == ' ') continue;
-		offset += bytes;
-		rcvbuf[offset] = 0;
 		retry = 0;
-		if (answer) {
-			if (!v) {
-				char *p;
-				if ((p = strstr(rcvbuf, answer)) && (int)strlen(p) >= dataBytes) {
-					v = p;
-				}
-			} else {
-				if (strchr(v, '\r'))
-					break;
-			}
-		} else if (rcvbuf[offset - 1] == '>' || rcvbuf[offset - 1] == '\r') {
-			break;
-		}
+		offset++;
 	}
-	if (!strncmp(rcvbuf, cmd, len)) {
-		// strip echo
-		return rcvbuf + len;
-	} else {
-		return rcvbuf;
+	if (fplog) {
+		fprintf(fplog, "%s\r\n===%d===\r\n", rcvbuf, GetTickCount() - startTime);
 	}
+	return rcvbuf;
 }
 
 PID_INFO* COBD::GetPidInfo(int pid)
@@ -236,49 +270,9 @@ int COBD::QuerySensor(int id)
 {
 	int value = INVALID_PID_DATA;
 	char cmd[16];
-	char answer[8];
 	sprintf(cmd, "%04X 1\r", id);
-	sprintf(answer, "41%02X", id & 0xff);
-	PID_INFO* pid = GetPidInfo(id);
-	char* reply = SendCommand(cmd, answer, (pid->dataBytes + 2) * 3 - 1);
-	if (fplog && reply) {
-		fprintf(fplog, "%d %s\\r\n", GetTickCount() - startTime, reply);
-		fflush(fplog);
-	}
+	char* reply = SendCommand(cmd);
 	switch (ProcessResponse(reply)) {
-	case HEX_DATA:
-		for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
-			sprintf(answer, "41%02X", pids[i].pid & 0xff);
-			char *p = strstr(reply, answer);
-			if (p) {
-				p += 4;
-				*(p + pids[i].dataBytes * 2) = 0;
-				value = hex2int(p);
-				pids[i].data.time = GetTickCount();
-				switch (pids[i].pid) {
-				case PID_ENGINE_LOAD:
-				case PID_THROTTLE:
-					pids[i].data.value = value * 100 / 255;
-					break;
-				case PID_RPM:
-					pids[i].data.value = value / 4;
-					break;
-				case PID_COOLANT_TEMP:
-				case PID_INTAKE_TEMP:
-					pids[i].data.value = value - 40;
-					break;
-				case PID_FUEL_SHORT_TERM_1:
-				case PID_FUEL_LONG_TERM_1:
-				case PID_FUEL_SHORT_TERM_2:
-				case PID_FUEL_LONG_TERM_2:
-					pids[i].data.value = (value-128) * 100/128;
-					break;
-				default:
-					pids[i].data.value = value;
-				}
-			}
-		}
-		break;
 	case ERR_NO_DATA:
 		cout << "No data" << endl;
 		Sleep(3000);
