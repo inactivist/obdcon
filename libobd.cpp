@@ -1,4 +1,4 @@
-/*************************************************************************
+/****************************f*********************************************
 * libobd - The OBD-II access library
 * Distributed under MPL 1.1
 *
@@ -15,6 +15,7 @@ using namespace ctb;
 using namespace std;
 
 static PID_INFO pids[] = {
+	{0x010C, 2, 1, "Engine RPM"},							// ((A*256)+B)/4
 	{0x0103, 2, 3, "Fuel system status"},
 	{0x0104, 1, 1, "Calculated engine load value"},		// % A*100/255
 	{0x0105, 1, 3, "Engine coolant temperature"},			// буC 	A-40
@@ -24,7 +25,6 @@ static PID_INFO pids[] = {
 	{0x0109, 1, 2, "Long term fuel trim #2"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
 	{0x010A, 1, 2, "Fuel pressure"},						// kPa (gauge) 	A*3
 	{0x010B, 1, 2, "Intake manifold absolute pressure"},	// kPa (absolute)	A
-	{0x010C, 2, 1, "Engine RPM"},							// ((A*256)+B)/4
 	{0x010D, 1, 1, "Vehicle speed"},						// km/h 	A
 	{0x010E, 1, 2, "Ignition Timing advance"},				// бу relative to #1 cylinder 	A/2 - 64
 	{0x010F, 1, 3, "Intake air temperature"}, 				// буC 	A-40
@@ -169,10 +169,16 @@ int COBD::RetrieveValue(int pid_l, char* data)
 	int value = INVALID_PID_DATA;
 	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
 		if ((pids[i].pid & 0xff) == pid_l) {
-			if (pids[i].dataBytes == 1)
-				value = hex2int(data);
-			else
-				value = (hex2int(data) << 8)+ hex2int(data + 3);
+			if (pids[i].dataBytes == 1) {
+				if (data[1])
+					value = hex2int(data);
+			} else {
+				if (data[4])
+					value = (hex2int(data) << 8)+ hex2int(data + 3);
+			}
+			if (value == INVALID_PID_DATA) {
+				break;
+			}
 			pids[i].data.time = GetTickCount();
 			switch (pids[i].pid) {
 			case PID_ENGINE_LOAD:
@@ -195,36 +201,56 @@ int COBD::RetrieveValue(int pid_l, char* data)
 			default:
 				pids[i].data.value = value;
 			}
+			break;
 		}
 	}
 	return value;
 }
 
-char* COBD::SendCommand(const char* cmd)
+char* COBD::SendCommand(const char* cmd, const char* answer)
 {
 	int len = strlen(cmd);
 	if(device->Write((char*)cmd, len) != len ) {
 		cerr << "Unable to send command" << endl;
 		return 0;
 	}
+	Sleep(10);
 	int retry = 0;
 	char* v = 0;
 	memset(rcvbuf, 0, sizeof(rcvbuf));
 	if (fplog) {
-		fprintf(fplog, "===%d===\r\n", GetTickCount() - startTime);
+		fprintf(fplog, "[%d] ", GetTickCount() - startTime);
 	}
-	int offset = device->Read(rcvbuf, sizeof(rcvbuf));
-	if (offset <= 0) return 0;
+	int offset;
+	do {
+		offset = device->Read(rcvbuf, sizeof(rcvbuf));
+		if (offset <= 0) {
+			if (++retry >= 150)	
+				return 0;
+			else
+				Sleep(20);
+		}
+	} while (rcvbuf[0] == '>' && !rcvbuf[1]);
 	char* parse = rcvbuf;
 	while (offset < sizeof(rcvbuf)) {
-		char *p = strstr(parse, "7E8");
-		int pid_l;
-		if (p && p[7] == '4' && p[8] == '1' && (pid_l = atoi(p + 10))) {
-			parse = p + 13;
-			RetrieveValue(pid_l, parse);
-			continue;
-		} else if (strchr(parse, '>')) {
-			break;
+		char *p;
+		if (!answer) {
+			if (p = strstr(parse, "7E8"))
+				p += 7;
+			else
+				p = strstr(parse, "41");
+			int pid_l;
+			if (p && p[0] == '4' && p[1] == '1' && p[4] && (pid_l = hex2int(p + 3))) {
+				p += 6;
+				if (RetrieveValue(pid_l, p) != INVALID_PID_DATA)
+					parse = p;
+			} else if (strchr(parse, '>')) {
+				break;
+			}
+		} else {
+			if (strstr(rcvbuf, answer) && strchr(rcvbuf, '>')) {
+				break;
+			}
 		}
 		// read till prompt character appears
 		int bytes = device->Read(rcvbuf + offset, 1);
@@ -243,7 +269,8 @@ char* COBD::SendCommand(const char* cmd)
 		offset++;
 	}
 	if (fplog) {
-		fprintf(fplog, "%s\r\n===%d===\r\n", rcvbuf, GetTickCount() - startTime);
+		fprintf(fplog, "%s [%d]\r\n\r\n", rcvbuf, GetTickCount() - startTime);
+		fflush(fplog);
 	}
 	return rcvbuf;
 }
@@ -266,9 +293,8 @@ PID_INFO* COBD::GetPidInfo(const char* name)
 	return 0;
 }
 
-int COBD::QuerySensor(int id)
+void COBD::QuerySensor(int id)
 {
-	int value = INVALID_PID_DATA;
 	char cmd[16];
 	sprintf(cmd, "%04X 1\r", id);
 	char* reply = SendCommand(cmd);
@@ -285,8 +311,12 @@ int COBD::QuerySensor(int id)
 		cout << "Stopped" << endl;
 		Sleep(3000);
 		break;
+	case CAN_ERROR:
+		cout << "CAN Error" << endl;
+		Sleep(3000);
+		break;
+
 	}
-	return value;
 }
 
 void COBD::Uninit()
@@ -322,28 +352,25 @@ bool COBD::Init()
 		pids[i].data.value = 0;
 	}
 
-	const char* initstr[] = {"atz\r", "ate0\r", "atsp0\r", "atl1\r", "atal\r", "ath1\r"};
+	char* reply = SendCommand("atz\r", "ELM327");
+	if (!reply) {
+		cout << "ELM327 not found" << endl;
+	}
+	const char* initstr[] = {"ate1\r", "atsp0\r", "atl1\r", "atal\r", "ath1\r"};
 	for (int i = 0; i < sizeof(initstr) / sizeof(initstr[0]); i++) {
-		Wait(0);
-		char* reply = SendCommand(initstr[i]);
+		Sleep(100);
+		reply = SendCommand(initstr[i]);
 		if (reply) {
-			switch (ProcessResponse(reply)) {
-			case INTERFACE_ELM327:
-				cout << "ELM327 adapter detected" << endl;
-				break;
-			}
+			cout << reply << endl;
 		} else {
 			cout << "Error sending command " << initstr[i] << endl;
 		}
-		Wait(100);
 	}
-	char* reply = SendCommand("0100 1");
-	if (reply) cout << "Valid PIDS: " << reply << endl;
-
 	for (int i = 0; i < 10; i++) {
-		Wait(5000);
+		Wait(3000);
 		cout << "Wait for data attempt " << i + 1 << endl;
-		if (RetrieveSensor(PID_RPM))
+		RetrieveSensor(PID_RPM);
+		if (pids[0].data.value > 0)
 			break;
 	}
 	startTime = GetTickCount();
@@ -369,9 +396,8 @@ void COBD::Wait(int interval, int minimum)
 
 bool COBD::RetrieveSensor(int pid)
 {
-	int value;
-	Wait(queryInterval);
-	value = QuerySensor(pid);
+	Sleep(queryInterval);
+	QuerySensor(pid);
 #if 0
 	if (GetTickCount() - startTime < 30000) {
 		if (value != INVALID_PID_DATA) {
@@ -392,7 +418,7 @@ bool COBD::RetrieveSensor(int pid)
 	} else {
 	}
 #endif
-	return value != INVALID_PID_DATA;
+	return true;
 }
 
 #define NUM_PIDS (sizeof(pids) / sizeof(pids[0]))

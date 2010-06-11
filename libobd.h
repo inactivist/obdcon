@@ -86,8 +86,8 @@ public:
 	}
 	bool StartLogging();
 	void StopLogging();
-	int QuerySensor(int id);
-	char* SendCommand(const char* cmd);
+	void QuerySensor(int id);
+	char* SendCommand(const char* cmd, const char* answer = 0);
 	DWORD Update();
 	bool Init();
 	void Uninit();
