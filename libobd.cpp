@@ -377,15 +377,20 @@ bool COBD::Init()
 			cout << "Error sending command " << initstr[i] << endl;
 		}
 	}
-	for (int i = 0; i < 10; i++) {
-		Wait(3000);
+	startTime = GetTickCount();
+	return true;
+}
+
+bool COBD::WaitReady(int seconds)
+{
+	for (int i = 0; i < seconds; i++) {
+		Wait(1000);
 		cout << "Wait for data attempt " << i + 1 << endl;
 		RetrieveSensor(PID_RPM);
 		if (pids[0].data.value > 0)
-			break;
+			return true;
 	}
-	startTime = GetTickCount();
-	return true;
+	return false;
 }
 
 void COBD::Wait(int interval, int minimum)

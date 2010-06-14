@@ -80,6 +80,7 @@ public:
 	COBD():device(0),running(true),lastTick(0),comport(4),baudrate(115200),queryInterval(QUERY_INTERVAL),fplog(0)
 	{
 		memset(protocol, 0, sizeof(protocol));
+		strcpy(protocol, "8N1");
 	}
 	~COBD() { 
 		Uninit();
@@ -92,6 +93,7 @@ public:
 	DWORD Update();
 	bool Init();
 	void Uninit();
+	bool WaitReady(int seconds = 5);
 	void Wait(int interval, int minimum = 10);
 	static PID_INFO* GetPidInfo(int pid);
 	static PID_INFO* GetPidInfo(const char* name);
