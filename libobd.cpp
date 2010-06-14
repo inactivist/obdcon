@@ -10,6 +10,9 @@
 #include <iostream>
 #include <time.h>
 #include "libobd.h"
+#include "charset.h"
+
+extern char appdir[];
 
 using namespace ctb;
 using namespace std;
@@ -319,6 +322,13 @@ void COBD::QuerySensor(int id)
 	}
 }
 
+void COBD::ClearFlags()
+{
+	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
+		pids[i].active = 0;
+	}
+}
+
 void COBD::Uninit()
 {
 	if (device) {
@@ -351,6 +361,7 @@ bool COBD::Init()
 		pids[i].data.time = 0;
 		pids[i].data.value = 0;
 	}
+	ClearFlags();
 
 	char* reply = SendCommand("atz\r", "ELM327");
 	if (!reply) {
@@ -476,22 +487,10 @@ int IsFileExist(const char* filename)
 bool COBD::StartLogging()
 {
 	char path[MAX_PATH];
-	time_t tm=time(NULL);
-	struct tm *btm;
-	btm=gmtime(&tm);
-
-	int n = GetModuleFileName(GetModuleHandle(NULL), path, MAX_PATH);
-	for (; n > 0; n--) {
-		if (path[n] == '\\') {
-			path[n + 1] = 0;
-			break;
-		}
-	}
-	strcat(path, "obddata-");
-	
-	char *p = path + strlen(path);
-	sprintf(p, "%02d%02d%02d%02d", btm->tm_mon + 1, btm->tm_mday, btm->tm_hour, btm->tm_min);
-	strcat(path, ".log");
+	SYSTEMTIME st;
+	GetSystemTime(&st);
+	_snprintf(path, sizeof(path), "%sobddata-%02d%02d%02d%02d.log",
+		appdir, st.wMonth, st.wDay, st.wHour, st.wMinute);
 	fplog = fopen(path, "wb");
 	return fplog != 0;
 }

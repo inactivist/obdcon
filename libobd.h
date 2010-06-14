@@ -84,6 +84,7 @@ public:
 	~COBD() { 
 		Uninit();
 	}
+	void ClearFlags();
 	bool StartLogging();
 	void StopLogging();
 	void QuerySensor(int id);
