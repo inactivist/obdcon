@@ -217,7 +217,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 		cerr << "Unable to send command" << endl;
 		return 0;
 	}
-	Sleep(10);
+	Sleep(queryInterval / 4);
 	int retry = 0;
 	char* v = 0;
 	memset(rcvbuf, 0, sizeof(rcvbuf));
