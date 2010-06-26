@@ -19,21 +19,20 @@ using namespace std;
 
 static PID_INFO pids[] = {
 	{0x010C, 2, 1, "Engine RPM"},							// ((A*256)+B)/4
-	{0x0103, 2, 3, "Fuel system status"},
+	{0x010D, 1, 1, "Vehicle speed"},						// km/h 	A
 	{0x0104, 1, 1, "Calculated engine load value"},		// % A*100/255
-	{0x0105, 1, 3, "Engine coolant temperature"},			// буC 	A-40
+	{0x0111, 1, 1, "Throttle position"},					// % 	A*100/255
 	{0x0106, 1, 2, "Short term fuel trim #1"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
 	{0x0107, 1, 2, "Long term fuel trim #1"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
 	{0x0108, 1, 2, "Short term fuel trim #2"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
 	{0x0109, 1, 2, "Long term fuel trim #2"},		// -100 (Rich) 	99.22 (Lean) 	 % 	(A-128) * 100/128
 	{0x010A, 1, 2, "Fuel pressure"},						// kPa (gauge) 	A*3
 	{0x010B, 1, 2, "Intake manifold absolute pressure"},	// kPa (absolute)	A
-	{0x010D, 1, 1, "Vehicle speed"},						// km/h 	A
 	{0x010E, 1, 2, "Ignition Timing advance"},				// бу relative to #1 cylinder 	A/2 - 64
 	{0x010F, 1, 3, "Intake air temperature"}, 				// буC 	A-40
 	{0x0110, 2, 2, "MAF air flow rate"},					// g/s 	((A*256)+B) / 100
-	{0x0111, 1, 1, "Throttle position"},					// % 	A*100/255
 	{0x0121, 2, 2, "Distance traveled with malfunction indicator lamp (MIL) on"},		// km 	(A*256)+B
+	{0x0105, 1, 3, "Engine coolant temperature"},			// буC 	A-40
 	{0x0122, 2, 3, "Fuel Rail Pressure (relative to manifold vacuum)"}, //	kPa 	(((A*256)+B) * 10) / 128
 	{0x012C, 1, 3, "Commanded EGR"},						// % 	100*A/255
 	{0x012D, 1, 3, "EGR Error"},							// % 	(A-128) * 100/128
@@ -49,6 +48,7 @@ static PID_INFO pids[] = {
 	{0x014C, 1, 3, "Commanded throttle actuator"},			// % 	A*100/255
 	{0x014D, 2, 3, "Time run with MIL on"},				// minutes 	(A*256)+B
 	{0x014E, 2, 3, "Time since trouble codes cleared"},	// minutes 	(A*256)+B
+	{0x0103, 2, 3, "Fuel system status"},
 };
 
 static int hex2int(const char *p)
@@ -290,7 +290,7 @@ PID_INFO* COBD::GetPidInfo(int pid)
 PID_INFO* COBD::GetPidInfo(const char* name)
 {
 	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
-		if (!strcmp(name, pids[i].name))
+		if (!_stricmp(name, pids[i].name))
 			return &pids[i];
 	}
 	return 0;
