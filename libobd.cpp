@@ -10,7 +10,6 @@
 #include <iostream>
 #include <time.h>
 #include "libobd.h"
-#include "charset.h"
 
 extern char appdir[];
 
