@@ -2,8 +2,8 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="obdcon"
-	ProjectGUID="{90507281-B2A1-4BD9-9C34-AAECDCC5283E}"
+	Name="libobd"
+	ProjectGUID="{C1E6EAD2-5142-4C0B-9625-74B18F32D9EB}"
 	RootNamespace="obdcon"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
@@ -20,7 +20,7 @@
 			Name="Debug|Win32"
 			OutputDirectory="$(SolutionDir)bin\"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="1"
+			ConfigurationType="2"
 			CharacterSet="2"
 			>
 			<Tool
@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=".;libctb"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+				PreprocessorDefinitions="WIN32;_DEBUG;BUILD_DLL;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -61,11 +61,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libobd.lib"
+				AdditionalDependencies="winmm.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(SolutionDir)lib"
 				GenerateDebugInformation="true"
 				SubSystem="1"
+				ImportLibrary="$(SolutionDir)lib\$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -92,10 +92,10 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			OutputDirectory="$(SolutionDir)bin\"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="1"
-			CharacterSet="1"
+			ConfigurationType="2"
+			CharacterSet="2"
 			WholeProgramOptimization="1"
 			>
 			<Tool
@@ -117,7 +117,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories=".;libctb"
+				PreprocessorDefinitions="WIN32;NDEBUG;BUILD_DLL"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -135,13 +136,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libobd.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(SolutionDir)lib"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				ImportLibrary="$(SolutionDir)lib\$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -176,9 +176,45 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\obdcon.cpp"
+				RelativePath=".\libobd.cpp"
 				>
 			</File>
+			<Filter
+				Name="libctb"
+				>
+				<File
+					RelativePath=".\libctb\fifo.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\getopt.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\win32\getopt.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\iobase.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\kbhit.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\win32\serport.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\serportx.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libctb\win32\timer.cpp"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -186,7 +222,47 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\libctb\ctb.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\fifo.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\getopt.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\gpib.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\iobase.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\kbhit.h"
+				>
+			</File>
+			<File
 				RelativePath=".\libobd.h"
+				>
+			</File>
+			<File
+				RelativePath=".\obdcon.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\serport.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\serportx.h"
+				>
+			</File>
+			<File
+				RelativePath=".\libctb\timer.h"
 				>
 			</File>
 		</Filter>

@@ -37,8 +37,8 @@ static PID_INFO pids[] = {
 	{0x012C, 1, 3, "Commanded EGR"},						// % 	100*A/255
 	{0x012D, 1, 3, "EGR Error"},							// % 	(A-128) * 100/128
 	{0x012F, 1, 3, "Fuel Level Input"},					// % 	100*A/255
-	{0x0131, 2, 2, "Distance traveled since codes cleared"}, // km 	(A*256)+B
-	{0x0133, 1, 3, "Barometric pressure"},					// kPa (Absolute) 	A
+	{0x0131, 2, 3, "Distance traveled since codes cleared"}, // km 	(A*256)+B
+	{0x0133, 1, 2, "Barometric pressure"},					// kPa (Absolute) 	A
 	{0x013C, 2, 3, "Catalyst Temperature"},				// °„C 	((A*256)+B)/10 - 40
 	{0x0143, 2, 2, "Absolute load value"},					// % 	((A*256)+B)*100/255
 	{0x0145, 1, 2, "Relative throttle position"},			// % 	A*100/255
@@ -49,6 +49,13 @@ static PID_INFO pids[] = {
 	{0x014D, 2, 3, "Time run with MIL on"},				// minutes 	(A*256)+B
 	{0x014E, 2, 3, "Time since trouble codes cleared"},	// minutes 	(A*256)+B
 	{0x0103, 2, 3, "Fuel system status"},
+	{0x0001, 1, 0, "Year"},
+	{0x0002, 1, 0, "Month"},
+	{0x0003, 1, 0, "Day"},
+	{0x0004, 1, 0, "Hour"},
+	{0x0005, 1, 0, "Minute"},
+	{0x0006, 1, 0, "Second"},
+	{0x0006, 1, 0, "MS"},
 };
 
 static int hex2int(const char *p)
@@ -172,12 +179,12 @@ int COBD::RetrieveValue(int pid_l, char* data)
 	int value = INVALID_PID_DATA;
 	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
 		if ((pids[i].pid & 0xff) == pid_l) {
-			if (pids[i].dataBytes == 1) {
-				if (data[1])
-					value = hex2int(data);
-			} else {
-				if (data[4])
-					value = (hex2int(data) << 8)+ hex2int(data + 3);
+			int a = hex2int(data);
+			int b = 0;
+			if (pids[i].dataBytes == 2) {
+				if (data[4]) {
+					b = hex2int(data + 3);
+				}
 			}
 			if (value == INVALID_PID_DATA) {
 				break;
@@ -186,23 +193,33 @@ int COBD::RetrieveValue(int pid_l, char* data)
 			switch (pids[i].pid) {
 			case PID_ENGINE_LOAD:
 			case PID_THROTTLE:
-				pids[i].data.value = value * 100 / 255;
+				pids[i].data.value = a * 100 / 255;
 				break;
 			case PID_RPM:
-				pids[i].data.value = value / 4;
+				pids[i].data.value = a / 4;
 				break;
 			case PID_COOLANT_TEMP:
 			case PID_INTAKE_TEMP:
-				pids[i].data.value = value - 40;
+				pids[i].data.value = a - 40;
 				break;
 			case PID_FUEL_SHORT_TERM_1:
 			case PID_FUEL_LONG_TERM_1:
 			case PID_FUEL_SHORT_TERM_2:
 			case PID_FUEL_LONG_TERM_2:
-				pids[i].data.value = (value-128) * 100/128;
+				pids[i].data.value = (a-128) * 100/128;
+				break;
+			case PID_ABS_LOAD:
+				pids[i].data.value = ((a*256)+b)*100/255;
+				break;
+			case PID_MAF_FLOW:
+				pids[i].data.value = ((a*256)+b) / 100;
 				break;
 			default:
-				pids[i].data.value = value;
+				if (b) {
+					pids[i].data.value = (a << 8) | b;
+				} else {
+					pids[i].data.value = a;
+				}
 			}
 			break;
 		}
@@ -280,6 +297,7 @@ char* COBD::SendCommand(const char* cmd, const char* answer)
 
 PID_INFO* COBD::GetPidInfo(int pid)
 {
+	if (pid == 0) return pids;
 	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
 		if (pids[i].pid == pid)
 			return &pids[i];
@@ -444,9 +462,24 @@ DWORD COBD::Update()
 	static int count = 0;
 	static int p2index = 0;
 	static int p3index = 0;
+	static int p0 = 0;
 	DWORD ret = 0;
+	// update non-vehicle data
+	if (p0 == 0) {
+		for (; pids[p0].priority; p0++);
+	}
+
+	SYSTEMTIME st;
+	GetSystemTime(&st);
+	pids[p0].data.value = st.wYear;
+	pids[p0 + 1].data.value = st.wMonth;
+	pids[p0 + 2].data.value = st.wDay;
+	pids[p0 + 3].data.value = st.wHour;
+	pids[p0 + 4].data.value = st.wMinute;
+	pids[p0 + 5].data.value = st.wSecond;
+
 	// retrieve sensors with priority 1
-	for (int i = 0; i < NUM_PIDS; i++) {
+	for (int i = 0; pids[i].priority; i++) {
 		if (pids[i].active && pids[i].priority == 1) {
 			RetrieveSensor(pids[i].pid);
 			ret++;
@@ -456,7 +489,7 @@ DWORD COBD::Update()
 		p2index = 0;
 		// retrieve sensors with priority 3
 		if (p3index >= NUM_PIDS) p3index = 0;
-		for (int i = p3index; i < NUM_PIDS; i++) {
+		for (int i = p3index; pids[i].priority; i++) {
 			if (pids[i].active && pids[i].priority == 3) {
 				RetrieveSensor(pids[i].pid);
 				ret++;
@@ -467,7 +500,7 @@ DWORD COBD::Update()
 
 	}
 	// retrieve sensors with priority 2
-	for (int i = p2index; i < NUM_PIDS; i++) {
+	for (int i = p2index; pids[i].priority; i++) {
 		if (pids[i].active && pids[i].priority == 2) {
 			RetrieveSensor(pids[i].pid);
 			ret++;
@@ -489,13 +522,13 @@ int IsFileExist(const char* filename)
 	return 0;
 }
 
-bool COBD::StartLogging()
+bool COBD::StartLogging(const char* dir)
 {
 	char path[MAX_PATH];
 	SYSTEMTIME st;
 	GetSystemTime(&st);
-	_snprintf(path, sizeof(path), "%sobddata-%02d%02d%02d%02d.log",
-		appdir, st.wMonth, st.wDay, st.wHour, st.wMinute);
+	_snprintf(path, sizeof(path), "%sobddata%02d%02d%02d%02d%02d.log",
+		dir ? dir : "", st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 	fplog = fopen(path, "wb");
 	return fplog != 0;
 }

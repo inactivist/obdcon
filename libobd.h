@@ -42,6 +42,8 @@ typedef struct {
 #define PID_FUEL_SHORT_TERM_2 0x0108
 #define PID_FUEL_LONG_TERM_2 0x0109
 #define PID_INTAKE_TEMP 0x010F
+#define PID_MAF_FLOW 0x0110
+#define PID_ABS_LOAD 0x0143
 
 #define INVALID_PID_DATA 0x80000000
 
@@ -72,9 +74,17 @@ typedef struct {
 #define STN_MFR_STRING     18
 #define ELM_MFR_STRING     19
 
+#if defined(BUILD_DLL)
+#define EXPORT __declspec(dllexport)
+#elif defined(LIBOBD_STATIC)
+#define EXPORT 
+#else
+#define EXPORT __declspec(dllimport)
+#endif
+
 class COBD;
 
-class COBD
+class EXPORT COBD
 {
 public:
 	COBD():device(0),running(true),lastTick(0),comport(4),baudrate(115200),queryInterval(QUERY_INTERVAL),fplog(0)
@@ -86,7 +96,7 @@ public:
 		Uninit();
 	}
 	void ClearFlags();
-	bool StartLogging();
+	bool StartLogging(const char* dir = 0);
 	void StopLogging();
 	void QuerySensor(int id);
 	char* SendCommand(const char* cmd, const char* answer = 0);
