@@ -178,48 +178,48 @@ int COBD::RetrieveValue(int pid_l, char* data)
 	int value = INVALID_PID_DATA;
 	for (int i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
 		if ((pids[i].pid & 0xff) == pid_l) {
-			int a = hex2int(data);
+			int a;
 			int b = 0;
+			if (!data[1]) break;
+			a = hex2int(data);
 			if (pids[i].dataBytes == 2) {
 				if (data[4]) {
 					b = hex2int(data + 3);
 				}
 			}
-			if (value == INVALID_PID_DATA) {
-				break;
-			}
 			pids[i].data.time = GetTickCount();
 			switch (pids[i].pid) {
 			case PID_ENGINE_LOAD:
 			case PID_THROTTLE:
-				pids[i].data.value = a * 100 / 255;
+				value = a * 100 / 255;
 				break;
 			case PID_RPM:
-				pids[i].data.value = a / 4;
+				value = (a << 6) | (b >> 2);
 				break;
 			case PID_COOLANT_TEMP:
 			case PID_INTAKE_TEMP:
-				pids[i].data.value = a - 40;
+				value = a - 40;
 				break;
 			case PID_FUEL_SHORT_TERM_1:
 			case PID_FUEL_LONG_TERM_1:
 			case PID_FUEL_SHORT_TERM_2:
 			case PID_FUEL_LONG_TERM_2:
-				pids[i].data.value = (a-128) * 100/128;
+				value = (a-128) * 100/128;
 				break;
 			case PID_ABS_LOAD:
-				pids[i].data.value = ((a*256)+b)*100/255;
+				value = ((a*256)+b)*100/255;
 				break;
 			case PID_MAF_FLOW:
-				pids[i].data.value = ((a*256)+b) / 100;
+				value = ((a*256)+b) / 100;
 				break;
 			default:
 				if (b) {
-					pids[i].data.value = (a << 8) | b;
+					value = (a << 8) | b;
 				} else {
-					pids[i].data.value = a;
+					value = a;
 				}
 			}
+			pids[i].data.value = value;
 			break;
 		}
 	}
@@ -487,8 +487,11 @@ DWORD COBD::Update()
 	if (p2index >= NUM_PIDS) {
 		p2index = 0;
 		// retrieve sensors with priority 3
-		if (p3index >= NUM_PIDS) p3index = 0;
-		for (int i = p3index; pids[i].priority; i++) {
+		for (int i = p3index; ; i++) {
+			if (i == NUM_PIDS) {
+				p3index = 0;
+				break;
+			}
 			if (pids[i].active && pids[i].priority == 3) {
 				RetrieveSensor(pids[i].pid);
 				ret++;
@@ -499,7 +502,11 @@ DWORD COBD::Update()
 
 	}
 	// retrieve sensors with priority 2
-	for (int i = p2index; pids[i].priority; i++) {
+	for (int i = p2index; ; i++) {
+		if (i == NUM_PIDS) {
+			p2index = NUM_PIDS;
+			break;
+		}
 		if (pids[i].active && pids[i].priority == 2) {
 			RetrieveSensor(pids[i].pid);
 			ret++;
