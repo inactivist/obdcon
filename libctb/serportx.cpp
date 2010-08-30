@@ -1,5 +1,5 @@
 #include "serportx.h"
-#ifdef WINCE
+#ifdef _WIN32_WCE
 #include <windows.h>
 #endif
 #include <sstream>
@@ -75,7 +75,7 @@ namespace ctb {
 	   TCHAR devname[32];
 
 #if defined ( WIN32 )
-#ifdef WINCE
+#ifdef _WIN32_WCE
 	   wsprintf(devname, TEXT("COM%d:"), portnumber);
 #else
 	   sprintf(devname, "\\\\.\\COM%d", portnumber);

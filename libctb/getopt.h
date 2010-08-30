@@ -9,8 +9,8 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-#if defined (WIN32)
-# include "win32/getopt.h"
+#if defined (WIN32) || defined (_WIN32_WCE)
+# include "libctb/win32/getopt.h"
 #else
 # include <getopt.h>
 #endif

@@ -9,7 +9,7 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN32_WCE)
 #include <tchar.h>
 #else
 #typdef char TCHAR

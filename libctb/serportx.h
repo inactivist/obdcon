@@ -13,7 +13,7 @@
 #include <string.h>
 #include "iobase.h"
 
-#if defined (WIN32)
+#if defined (WIN32) || defined(_WIN32_WCE)
 # define snprintf _snprintf
 #endif
 

@@ -7,7 +7,6 @@
 #endif
 #include "getopt.h"
 #include "iobase.h"
-#include "kbhit.h"
 #include "serport.h"
 #include "serportx.h"
 #include "timer.h"

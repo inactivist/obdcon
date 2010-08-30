@@ -9,7 +9,7 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-#if defined (WIN32)
+#if defined (WIN32) || defined (_WIN32_WCE)
 # include "win32/timer.h"
 #else
 # include "linux/timer.h"

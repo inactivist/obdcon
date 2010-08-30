@@ -14,7 +14,7 @@
 #define SERIALPORT_BUFSIZE 4096
 
 namespace ctb {
-#ifdef WINCE
+#ifdef _WIN32_WCE
 	const TCHAR* COM1 = TEXT("COM1:");
     const TCHAR* COM2 = TEXT("COM2:");
     const TCHAR* COM3 = TEXT("COM3:");
