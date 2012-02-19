@@ -1,3 +1,10 @@
+/*************************************************************************
+* OBD-II data accessing library for Arduino
+* Distributed under GPL v2.0
+* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+*************************************************************************/
+
 #define PID_RPM 0x0C
 #define PID_SPEED 0x0D
 #define PID_THROTTLE 0x11

@@ -1,4 +1,10 @@
-//example use of LCD4Bit_mod library
+/*************************************************************************
+* Sample application based on OBD-II data accessing library for Arduino
+* Distributed under GPL v2.0
+* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+*************************************************************************/
+
 #include <LCD4Bit_mod.h>
 #include <OBD.h>
 
