@@ -1,10 +1,3 @@
-/*************************************************************************
-* OBD-II connection library for Arduino
-* Distributed under GPL v2.0
-* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
-* All rights reserved.
-*************************************************************************/
-
 #include <Arduino.h>
 #include "OBD.h"
 
@@ -43,7 +36,7 @@ void COBD::Query(uint8_t pid)
 {
 	char cmd[8];
 	sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
-	Serial.write(cmd);
+	WriteData(cmd);
 }
 
 bool COBD::ReadSensor(uint8_t pid, int& result)
@@ -133,7 +126,7 @@ bool COBD::GetResponse(uint8_t pid)
 				}
 
 			}
-		} else if ((dataMode == 1 && millis() - currentMillis > 500) || millis() - currentMillis > 3000) {
+		} else if ((dataMode == 1 && millis() - currentMillis > OBD_TIMEOUT_SHORT) || millis() - currentMillis > OBD_TIMEOUT_LONG) {
 			break;
 		}
 	}
@@ -173,9 +166,17 @@ bool COBD::Init()
 					delay(50);
 					break;
 				}
-			} else if (millis() - currentMillis > 3000) {
-				i = CMD_COUNT;
-				break;
+			} else {
+				unsigned long elapsed = millis() - currentMillis;
+				if (elapsed > OBD_TIMEOUT_SHORT) {
+					if (elapsed < OBD_TIMEOUT_LONG) {
+						WriteData("\r");
+						WriteData(initcmd[i]);
+					} else {
+						i = CMD_COUNT;
+						break;
+					}
+				}
 			}
 		}
 	}

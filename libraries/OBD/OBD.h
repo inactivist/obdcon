@@ -1,10 +1,7 @@
-/*************************************************************************
-* OBD-II connection library for Arduino
-* Distributed under GPL v2.0
-* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
-* All rights reserved.
-*************************************************************************/
+#define OBD_TIMEOUT_SHORT 3000 /* ms */
+#define OBD_TIMEOUT_LONG 8000 /* ms */
 
+// mode 0 pids
 #define PID_RPM 0x0C
 #define PID_SPEED 0x0D
 #define PID_THROTTLE 0x11
@@ -29,12 +26,7 @@ public:
 	bool ReadSensor(uint8_t pid, int& result);
 	char recvBuf[64];
 	uint8_t dataMode;
-private:
-	virtual bool DataAvailable();
-	virtual char ReadData();
-	virtual uint8_t WriteData(const char* s);
-	unsigned int hex2int(const char *p);
-	unsigned char hex2char(const char *p);
+protected:
 	void Query(uint8_t pid);
 	bool GetResponse(uint8_t pid);
 	int GetPercentageValue()
@@ -53,4 +45,10 @@ private:
 	{
 		return (int)hex2char(recvBuf + 9) - 40;
 	}
+private:
+	virtual bool DataAvailable();
+	virtual char ReadData();
+	virtual uint8_t WriteData(const char* s);
+	unsigned int hex2int(const char *p);
+	unsigned char hex2char(const char *p);
 };
