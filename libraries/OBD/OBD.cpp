@@ -103,7 +103,7 @@ uint8_t COBD::WriteData(const char* s)
 
 bool COBD::GetResponse(uint8_t pid)
 {
-	unsigned long currentMillis = millis();  
+	unsigned long currentMillis = millis();
 	byte i;
 	byte errors = 0;
 	bool needSpace = false;
@@ -144,10 +144,10 @@ static const char* initcmd[] = {"atz\r", "ate0\r","atl1\r","ath1\r"};
 
 bool COBD::Init()
 {
-	unsigned long currentMillis = millis();  
-	char n = 0;
+	unsigned long currentMillis = millis();
+	uint8_t n = 0;
 	dataMode = 1;
-	for (char i = 0; i < CMD_COUNT; i++) {
+	for (uint8_t i = 0; i < CMD_COUNT; i++) {
 		WriteData(initcmd[i]);
 		for (;;) {
 			if (DataAvailable()) {
