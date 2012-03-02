@@ -1,3 +1,10 @@
+/*************************************************************************
+* OBD-II (ELM327) data accessing library for Arduino
+* Distributed under GPL v2.0
+* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+*************************************************************************/
+
 #define OBD_TIMEOUT_SHORT 3000 /* ms */
 #define OBD_TIMEOUT_LONG 8000 /* ms */
 
@@ -51,4 +58,5 @@ private:
 	virtual uint8_t WriteData(const char* s);
 	unsigned int hex2int(const char *p);
 	unsigned char hex2char(const char *p);
+	char elmRevision;
 };

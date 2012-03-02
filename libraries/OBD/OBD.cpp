@@ -1,3 +1,10 @@
+/*************************************************************************
+* OBD-II (ELM327) data accessing library for Arduino
+* Distributed under GPL v2.0
+* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+*************************************************************************/
+
 #include <Arduino.h>
 #include "OBD.h"
 
@@ -154,6 +161,7 @@ bool COBD::Init()
 				char c = ReadData();
 				if (i == 0) {
 					if (n == 0) {
+                        // expect reponse starts with ELM
 						if (c == 'E') {
 							recvBuf[n++] = c;
 						}
@@ -170,20 +178,20 @@ bool COBD::Init()
 				unsigned long elapsed = millis() - currentMillis;
 				if (elapsed > OBD_TIMEOUT_SHORT) {
 					if (elapsed < OBD_TIMEOUT_LONG) {
+                        // retry
 						WriteData("\r");
 						WriteData(initcmd[i]);
+						currentMillis = millis();
 					} else {
-						i = CMD_COUNT;
-						break;
+					    // timeout
+					    return false;
 					}
 				}
 			}
 		}
 	}
-	if (n > 0) {
-		recvBuf[n] = 0;
-		return true;
-	} else {
-		return false;
-	}
+	recvBuf[n] = 0;
+	char *p = strstr(recvBuf, "1.");
+    elmRevision = p ? *(p + 2) - '0' : 0;
+	return true;
 }
