@@ -42,7 +42,10 @@ unsigned char COBD::hex2char(const char *p)
 void COBD::Query(uint8_t pid)
 {
 	char cmd[8];
-	sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
+	if (elmRevision >= 4)
+        sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
+    else
+        sprintf(cmd, "%02X%02X\r", dataMode, pid);
 	WriteData(cmd);
 }
 
@@ -112,7 +115,8 @@ bool COBD::GetResponse(uint8_t pid)
 {
 	unsigned long currentMillis = millis();
 	byte i;
-	byte errors = 0;
+	byte misalign = 0;
+	byte lines = 0;
 	bool needSpace = false;
 	for (i = 0; i < sizeof(recvBuf) - 1;) {
 		if (DataAvailable()) {
@@ -121,26 +125,31 @@ bool COBD::GetResponse(uint8_t pid)
 				if (c == ' ')
 					needSpace = false;
 				else
-					errors++;
+					misalign++;
 			}
 			if (c == '>') {
 				// prompt char reached
 				break;
+			} else if (c == '\r') {
+			    lines++;
 			} else if ((c >= '0' && c <= '9') || (c >='A' && c <= 'Z')) {
 				recvBuf[i++] = c;
-				if (i >= 3 && ((i - 3) & 1 == 0)) {
+				if (lines == 0 && i >= 3 && (((i - 3) & 1) == 0)) {
 					needSpace = true;
 				}
 
 			}
 		} else if ((dataMode == 1 && millis() - currentMillis > OBD_TIMEOUT_SHORT) || millis() - currentMillis > OBD_TIMEOUT_LONG) {
+		    // timeout
+		    errors++;
 			break;
 		}
 	}
 	recvBuf[i] = 0;
-	if (recvBuf[0] == '7' && recvBuf[1] == 'E' && (recvBuf[2] == '8' || recvBuf[2] == '9') &&
+	if (misalign == 0 && recvBuf[0] == '7' && recvBuf[1] == 'E' && (recvBuf[2] == '8' || recvBuf[2] == '9') &&
 		recvBuf[5] == '4' && recvBuf[6] == '1' && hex2char(recvBuf + 7) == pid) {
-		return errors == 0;
+        errors = 0;
+		return true;
 	} else {
 		return false;
 	}
@@ -148,50 +157,74 @@ bool COBD::GetResponse(uint8_t pid)
 
 static const char* initcmd[] = {"atz\r", "ate0\r","atl1\r","ath1\r"};
 #define CMD_COUNT (sizeof(initcmd) / sizeof(initcmd[0]))
+static const char* s_elm = "ELM327";
+static const char* s_ok = "OK";
+
+void COBD::Sleep(uint16_t seconds)
+{
+    WriteData("atlp\r");
+    if (seconds) {
+        delay((unsigned long)seconds * 1000);
+        WriteData("\r");
+    }
+}
 
 bool COBD::Init()
 {
-	unsigned long currentMillis = millis();
-	uint8_t n = 0;
+	unsigned long currentMillis;
+	uint8_t n;
 	dataMode = 1;
+	char prompted;
+
+    elmRevision = 0;
 	for (uint8_t i = 0; i < CMD_COUNT; i++) {
 		WriteData(initcmd[i]);
+		n = 0;
+		prompted = 0;
+        currentMillis = millis();
 		for (;;) {
 			if (DataAvailable()) {
 				char c = ReadData();
 				if (i == 0) {
-					if (n == 0) {
-                        // expect reponse starts with ELM
-						if (c == 'E') {
+                    // reset command
+					if (n < sizeof(s_elm)) {
+                        if (c == s_elm[n]) {
 							recvBuf[n++] = c;
 						}
 					} else if (n < sizeof(recvBuf) - 1) {
 						recvBuf[n++] = c;
 					}
+				} else {
+				    if (n < sizeof(s_ok) && c == s_ok[n]) {
+                        n++;
+				    }
 				}
-				if (c == '>') {
-					// finished
-					delay(50);
-					break;
-				}
+                if (c == '>') {
+                    prompted++;
+                }
+            } else if (prompted) {
+                if (i == 0) {
+                    // reset command
+                   	recvBuf[n] = 0;
+                    if (n >= sizeof(s_elm)) {
+                       	char *p = strstr(recvBuf, "1.");
+                        elmRevision = p ? *(p + 2) - '0' : 0;
+                        break;
+                    }
+                } else {
+                    if (n >= sizeof(s_ok)) break;
+                }
+                break;
 			} else {
 				unsigned long elapsed = millis() - currentMillis;
 				if (elapsed > OBD_TIMEOUT_SHORT) {
-					if (elapsed < OBD_TIMEOUT_LONG) {
-                        // retry
-						WriteData("\r");
-						WriteData(initcmd[i]);
-						currentMillis = millis();
-					} else {
-					    // timeout
-					    return false;
-					}
+				    // timeout
+				    //WriteData("\r");
+				    return false;
 				}
 			}
 		}
 	}
-	recvBuf[n] = 0;
-	char *p = strstr(recvBuf, "1.");
-    elmRevision = p ? *(p + 2) - '0' : 0;
+    errors = 0;
 	return true;
 }

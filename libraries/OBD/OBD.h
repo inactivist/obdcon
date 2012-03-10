@@ -7,6 +7,7 @@
 
 #define OBD_TIMEOUT_SHORT 3000 /* ms */
 #define OBD_TIMEOUT_LONG 8000 /* ms */
+#define OBD_SERIAL_BAUDRATE 38400
 
 // mode 0 pids
 #define PID_RPM 0x0C
@@ -32,7 +33,10 @@ public:
 	bool Init();
 	bool ReadSensor(uint8_t pid, int& result);
 	char recvBuf[64];
+	void Sleep(uint16_t seconds);
 	uint8_t dataMode;
+	uint8_t errors;
+	char elmRevision;
 protected:
 	void Query(uint8_t pid);
 	bool GetResponse(uint8_t pid);
@@ -58,5 +62,4 @@ private:
 	virtual uint8_t WriteData(const char* s);
 	unsigned int hex2int(const char *p);
 	unsigned char hex2char(const char *p);
-	char elmRevision;
 };

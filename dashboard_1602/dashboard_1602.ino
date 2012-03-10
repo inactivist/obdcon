@@ -1,73 +1,75 @@
-/*************************************************************************
-* Sample sketch based on OBD-II connection library for Arduino
-* Distributed under GPL v2.0
-* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
-* All rights reserved.
-*************************************************************************/
-
+#include <arduino.h>
 #include <LCD4Bit_mod.h>
 #include <OBD.h>
 
-//create object to control an LCD.  
+int get_key(unsigned int input);
+
+//create object to control an LCD.
 //number of lines in display=1
-LCD4Bit_mod lcd = LCD4Bit_mod(2); 
+LCD4Bit_mod lcd = LCD4Bit_mod(2);
+
 COBD obd;
 
 //Key message
-char msgs[5][15] = {"Right Key OK ", 
-                    "Up Key OK    ", 
-                    "Down Key OK  ", 
-                    "Left Key OK  ", 
+char msgs[5][15] = {"Right Key OK ",
+                    "Up Key OK    ",
+                    "Down Key OK  ",
+                    "Left Key OK  ",
                     "Select Key OK" };
-int  adc_key_val[5] ={30, 150, 360, 535, 760 };
+unsigned int  adc_key_val[5] ={30, 150, 360, 535, 760 };
 int NUM_KEYS = 5;
 int adc_key_in;
 int key=-1;
 int oldkey=-1;
 uint8_t errors;
 unsigned long lastTick = millis();
-char modes[2] = {0, 5};
+uint8_t modes[2] = {0, 5};
 
-char modePids[] = {PID_RPM, PID_SPEED, PID_THROTTLE, PID_ENGINE_LOAD,
+const char modePids[] = {PID_RPM, PID_SPEED, PID_THROTTLE, PID_ENGINE_LOAD,
 	PID_COOLANT_TEMP, PID_INTAKE_TEMP, PID_AMBIENT_TEMP, PID_MAF_FLOW,
 	PID_ABS_ENGINE_LOAD, PID_FUEL_PRESSURE, PID_INTAKE_PRESSURE, PID_BAROMETRIC,
 	PID_TIMING_ADVANCE, PID_FUEL_LEVEL, PID_RUNTIME, PID_DISTANCE};
 
-char* modeLabels[] = {
+const char* modeLabels[] = {
 	"Engine       rpm", "Speed       km/h", "Throttle       %", "Engine Load    %",
 	"Coolant        C", "Intake Air     C", "Env. Temp      C", "MAF Flow     kpa",
 	"Abs. Load      %", "Fuel         kpa", "Intake       kpa", "Barometer    kpa",
-	"Timing Adv.", "Fuel Level     %", "Run Time", "Distance      km"};
+	"Timing Adv.     ", "Fuel Level     %", "Run Time", "Distance      km"};
 
-char modePos[] = {8, 8, 11, 12,
+const char modePos[] = {8, 8, 11, 12,
 	11, 11, 11, 9,
 	11, 9, 9, 10,
 	12, 11, 8, 10};
 
-char* modeFmts[] = {"%4u", "%3u", "%3u", "%u",
+const char* modeFmts[] = {"%4u", "%3u", "%3u", "%u",
 	"%3d", "%3d", "%3d", "%3u",
 	"%3u", "%3u", "%3u", "%u",
-	"%3d", "%3u", "%04u:%02u", "%04u"};
+	"%3d", "%3u", "%4u:%02u", "%04u"};
 
 #define TOTAL_PIDS (sizeof(modePids) / sizeof(modePids[0]))
 
 void updateMode()
 {
-	lcd.clear();
-	lcd.printIn(modeLabels[modes[0]]);
+	lcd.cursorTo(1, 0);
+	lcd.printIn((char*)modeLabels[modes[0]]);
 	lcd.cursorTo(2, 0);
-	lcd.printIn(modeLabels[modes[1]]);
+	lcd.printIn((char*)modeLabels[modes[1]]);
 }
 
 bool showData(int index)
 {
+	char buf[16];
 	int value;
-	char mode = modes[index];
+	uint8_t mode = modes[index];
 	uint8_t pid = modePids[mode];
 	if (!obd.ReadSensor(pid, value))
+        /*
+        lcd.cursorTo(index + 1, 0);
+        lcd.printIn(obd.recvBuf);
+        delay(1000);
+        */
 		return false;
 
-	char buf[16];
 	if (pid == PID_RUNTIME) {
 		sprintf(buf, modeFmts[mode], (unsigned int)value / 60, (unsigned int)value % 60);
 	} else {
@@ -75,12 +77,12 @@ bool showData(int index)
 	}
 	lcd.cursorTo(index + 1, modePos[mode]);
 	lcd.printIn(buf);
-	return true;					
+	return true;
 }
 
 bool setupConnection()
 {
-	char buf[16];
+  char buf[16];
   lcd.clear();
   lcd.printIn("Connecting...");
   errors = 0;
@@ -95,29 +97,29 @@ bool setupConnection()
   lcd.printIn(obd.recvBuf);
   delay(1000);
   updateMode();
+  return true;
 }
 
-void setup() { 
+void setup()
+{
   pinMode(13, OUTPUT);  //we'll use the debug LED to output a heartbeat
   lcd.init();
-  Serial.begin(9600);
+  Serial.begin(OBD_SERIAL_BAUDRATE);
   setupConnection();
-  //optionally, now set up our application-specific display settings, overriding whatever the lcd did in lcd.init()
-  //lcd.commandWrite(0x0F);//cursor on, display on, blink on.  (nasty!)
 }
 
 void loop()
 {
-	adc_key_in = analogRead(0);    // read the value from the sensor  
+	adc_key_in = analogRead(0);    // read the value from the sensor
 	digitalWrite(13, HIGH);
 	key = get_key(adc_key_in);		        // convert into key press
-	
+
 	if (key != oldkey) {
 		delay(50);		// wait for debounce time
-		adc_key_in = analogRead(0);    // read the value from the sensor  
+		adc_key_in = analogRead(0);    // read the value from the sensor
 		key = get_key(adc_key_in);		        // convert into key press
-		if (key != oldkey)				
-		{			
+		if (key != oldkey)
+		{
 			oldkey = key;
 			if (key >=0){
 				switch (key) {
@@ -160,7 +162,7 @@ void loop()
 		} else {
 			errors = 0;
 		}
-		if (errors > 5) {
+		if (errors > 10) {
 			if (setupConnection()) {
 				errors = 0;
 			}
@@ -185,18 +187,18 @@ void loop()
 int get_key(unsigned int input)
 {
 	int k;
-    
+
 	for (k = 0; k < NUM_KEYS; k++)
 	{
 		if (input < adc_key_val[k])
 		{
-           
+
     return k;
         }
 	}
-    
+
     if (k >= NUM_KEYS)
         k = -1;     // No valid key pressed
-    
+
     return k;
 }
