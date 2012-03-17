@@ -12,13 +12,16 @@ unsigned int COBD::hex2int(const char *p)
 {
 	char c = *p;
 	unsigned int i = 0;
-	for (char n = 0; n < 4; n++) {
-		if (c >= 'A' && c <= 'F')
+	for (char n = 0; c && n < 4; c = *(++p)) {
+		if (c >= 'A' && c <= 'F') {
 			c -= 7;
-		else if (c < '0' || c > '9')
+        } else if (c == ' ') {
+            continue;
+        } else if (c < '0' || c > '9') {
 			break;
+        }
 		i = (i << 4) | (c & 0xF);
-		c = *(++p);
+		n++;
 	}
 	return i;
 }
@@ -39,7 +42,7 @@ unsigned char COBD::hex2char(const char *p)
 	return c1 << 4 | (c2 & 0xf);
 }
 
-void COBD::Query(uint8_t pid)
+void COBD::Query(unsigned char pid)
 {
 	char cmd[8];
 	if (elmRevision >= 4)
@@ -49,7 +52,7 @@ void COBD::Query(uint8_t pid)
 	WriteData(cmd);
 }
 
-bool COBD::ReadSensor(uint8_t pid, int& result)
+bool COBD::ReadSensor(unsigned char pid, int& result)
 {
 	Query(pid);
 	if (!GetResponse(pid))
@@ -106,38 +109,28 @@ char COBD::ReadData()
 	return Serial.read();
 }
 
-uint8_t COBD::WriteData(const char* s)
+unsigned char COBD::WriteData(const char* s)
 {
 	return Serial.write(s);
 }
 
-bool COBD::GetResponse(uint8_t pid)
+bool COBD::GetResponse(unsigned char pid)
 {
 	unsigned long currentMillis = millis();
-	byte i;
-	byte misalign = 0;
-	byte lines = 0;
-	bool needSpace = false;
-	for (i = 0; i < sizeof(recvBuf) - 1;) {
+	byte i = 0;
+	data = 0;
+
+	for (;;) {
 		if (DataAvailable()) {
 			char c = ReadData();
-			if (needSpace) {
-				if (c == ' ')
-					needSpace = false;
-				else
-					misalign++;
+			recvBuf[i] = c;
+			if (++i == sizeof(recvBuf) - 1) {
+                // buffer overflow
+                break;
 			}
-			if (c == '>') {
+			if (c == '>' && i > 6) {
 				// prompt char reached
 				break;
-			} else if (c == '\r') {
-			    lines++;
-			} else if ((c >= '0' && c <= '9') || (c >='A' && c <= 'Z')) {
-				recvBuf[i++] = c;
-				if (lines == 0 && i >= 3 && (((i - 3) & 1) == 0)) {
-					needSpace = true;
-				}
-
 			}
 		} else if ((dataMode == 1 && millis() - currentMillis > OBD_TIMEOUT_SHORT) || millis() - currentMillis > OBD_TIMEOUT_LONG) {
 		    // timeout
@@ -146,21 +139,28 @@ bool COBD::GetResponse(uint8_t pid)
 		}
 	}
 	recvBuf[i] = 0;
-	if (misalign == 0 && recvBuf[0] == '7' && recvBuf[1] == 'E' && (recvBuf[2] == '8' || recvBuf[2] == '9') &&
-		recvBuf[5] == '4' && recvBuf[6] == '1' && hex2char(recvBuf + 7) == pid) {
-        errors = 0;
-		return true;
-	} else {
-		return false;
+
+	char *p = recvBuf;
+	while (p = strstr(p, "41 ")) {
+        p += 3;
+        if (hex2char(p) == pid) {
+            errors = 0;
+            p += 2;
+            if (*p == ' ') p++;
+            data = p;
+            return true;
+        }
 	}
+	data = recvBuf;
+	return false;
 }
 
-static const char* initcmd[] = {"atz\r", "ate0\r","atl1\r","ath1\r"};
+static const char* initcmd[] = {"atz\r", "ate0\r","atl1\r"};
 #define CMD_COUNT (sizeof(initcmd) / sizeof(initcmd[0]))
 static const char* s_elm = "ELM327";
 static const char* s_ok = "OK";
 
-void COBD::Sleep(uint16_t seconds)
+void COBD::Sleep(int seconds)
 {
     WriteData("atlp\r");
     if (seconds) {
@@ -172,12 +172,13 @@ void COBD::Sleep(uint16_t seconds)
 bool COBD::Init()
 {
 	unsigned long currentMillis;
-	uint8_t n;
+	unsigned char n;
 	dataMode = 1;
 	char prompted;
 
+    data = recvBuf;
     elmRevision = 0;
-	for (uint8_t i = 0; i < CMD_COUNT; i++) {
+	for (unsigned char i = 0; i < CMD_COUNT; i++) {
 		WriteData(initcmd[i]);
 		n = 0;
 		prompted = 0;
@@ -217,7 +218,7 @@ bool COBD::Init()
                 break;
 			} else {
 				unsigned long elapsed = millis() - currentMillis;
-				if (elapsed > OBD_TIMEOUT_SHORT) {
+				if (elapsed > OBD_TIMEOUT_LONG) {
 				    // timeout
 				    //WriteData("\r");
 				    return false;

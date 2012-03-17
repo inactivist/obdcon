@@ -31,35 +31,36 @@ class COBD
 {
 public:
 	bool Init();
-	bool ReadSensor(uint8_t pid, int& result);
+	bool ReadSensor(unsigned char pid, int& result);
 	char recvBuf[64];
-	void Sleep(uint16_t seconds);
-	uint8_t dataMode;
-	uint8_t errors;
+	void Sleep(int seconds);
+	unsigned char dataMode;
+	unsigned char errors;
 	char elmRevision;
+	char* data;
 protected:
-	void Query(uint8_t pid);
-	bool GetResponse(uint8_t pid);
+	void Query(unsigned char pid);
+	bool GetResponse(unsigned char pid);
 	int GetPercentageValue()
 	{
-		return (int)hex2char(recvBuf + 9) * 100 / 255;
+		return (int)hex2char(data) * 100 / 255;
 	}
 	int GetLargeValue()
 	{
-		return hex2int(recvBuf + 9);
+		return hex2int(data);
 	}
 	int GetSmallValue()
 	{
-		return hex2char(recvBuf + 9);
+		return hex2char(data);
 	}
 	int GetTemperatureValue()
 	{
-		return (int)hex2char(recvBuf + 9) - 40;
+		return (int)hex2char(data) - 40;
 	}
 private:
 	virtual bool DataAvailable();
 	virtual char ReadData();
-	virtual uint8_t WriteData(const char* s);
+	virtual unsigned char WriteData(const char* s);
 	unsigned int hex2int(const char *p);
 	unsigned char hex2char(const char *p);
 };
