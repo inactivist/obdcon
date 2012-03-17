@@ -109,14 +109,15 @@ char COBD::ReadData()
 	return Serial.read();
 }
 
-unsigned char COBD::WriteData(const char* s)
+void COBD::WriteData(const char* s)
 {
-	return Serial.write(s);
+	Serial.write(s);
 }
 
 bool COBD::GetResponse(unsigned char pid)
 {
 	unsigned long currentMillis = millis();
+	bool searching = false;
 	byte i = 0;
 	data = 0;
 
@@ -128,19 +129,31 @@ bool COBD::GetResponse(unsigned char pid)
                 // buffer overflow
                 break;
 			}
-			if (c == '>' && i > 6) {
+			if (c == '>' && i > 3) {
 				// prompt char reached
 				break;
 			}
-		} else if ((dataMode == 1 && millis() - currentMillis > OBD_TIMEOUT_SHORT) || millis() - currentMillis > OBD_TIMEOUT_LONG) {
-		    // timeout
-		    errors++;
-			break;
+		} else {
+			unsigned int elapsed = millis() - currentMillis;
+			if (searching) {
+				if (elapsed > OBD_TIMEOUT_LONG) {
+					errors++;
+					break;
+				}
+			} else if (elapsed > 500) {
+				if (i >= 9) {
+					recvBuf[i] = 0;
+					searching = strstr(recvBuf, "SEARCHING") != 0;
+				}
+				if (!searching) {
+					break;
+				}
+			}
 		}
 	}
-	recvBuf[i] = 0;
 
 	char *p = recvBuf;
+	recvBuf[i] = 0;
 	while (p = strstr(p, "41 ")) {
         p += 3;
         if (hex2char(p) == pid) {
@@ -151,6 +164,7 @@ bool COBD::GetResponse(unsigned char pid)
             return true;
         }
 	}
+	errors++;
 	data = recvBuf;
 	return false;
 }

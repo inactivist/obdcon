@@ -60,7 +60,7 @@ protected:
 private:
 	virtual bool DataAvailable();
 	virtual char ReadData();
-	virtual unsigned char WriteData(const char* s);
+	virtual void WriteData(const char* s);
 	unsigned int hex2int(const char *p);
 	unsigned char hex2char(const char *p);
 };
