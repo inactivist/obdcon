@@ -1,3 +1,11 @@
+/*************************************************************************
+* Sample sketch based on OBD-II library for Arduino
+* Using a LCD1602 shield to display realtime vehicle data
+* Distributed under GPL v2.0
+* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* All rights reserved.
+*************************************************************************/
+
 #include <arduino.h>
 #include <LCD4Bit_mod.h>
 #include <OBD.h>
