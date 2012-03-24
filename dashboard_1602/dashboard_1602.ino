@@ -13,7 +13,6 @@
 int get_key(unsigned int input);
 
 //create object to control an LCD.
-//number of lines in display=1
 LCD4Bit_mod lcd = LCD4Bit_mod(2);
 
 COBD obd;
@@ -24,7 +23,6 @@ int NUM_KEYS = 5;
 int adc_key_in;
 int key=-1;
 int oldkey=-1;
-uint8_t errors;
 unsigned long lastTick = millis();
 uint8_t modes[2] = {0, 2};
 
@@ -65,12 +63,13 @@ bool showData(int index)
 	int value;
 	uint8_t mode = modes[index];
 	uint8_t pid = modePids[mode];
-    digitalWrite(13, HIGH);   // set the LED on
+	digitalWrite(13, HIGH);   // set the LED on
 	if (!obd.ReadSensor(pid, value)) {
-        lcd.cursorTo(index + 1, 0);
-        lcd.printIn(obd.recvBuf);
-        delay(2000);
-        updateMode();
+                // display received data on error
+		lcd.cursorTo(index + 1, 0);
+		lcd.printIn(obd.recvBuf);
+		delay(2000);
+		updateMode();
 		return false;
 	}
 	digitalWrite(13, LOW);   // set the LED off
@@ -87,10 +86,10 @@ bool showData(int index)
 
 bool setupConnection()
 {
+  uint8_t errors = 0;
   char buf[16];
   lcd.clear();
   lcd.printIn("Connecting...");
-  errors = 0;
   while (!obd.Init()) {
 	  lcd.cursorTo(2, 0);
 	  sprintf(buf, "Attempts #%d", ++errors);
@@ -162,18 +161,6 @@ void loop()
 		}
 		lastTick = curTick;
 	}
-
-	/*
-	sprintf(buf, "%3d", obd.QueryIntakePressure());
-    lcd.cursorTo(1, 10);
-	lcd.printIn(buf);
-
-	sprintf(buf, "%3d", obd.QueryFuelPressure());
-    lcd.cursorTo(2, 10);
-	lcd.printIn(buf);
-	*/
-
-	//delay(1000);
 }
 
 // Convert ADC value to key number
