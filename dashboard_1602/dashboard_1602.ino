@@ -19,11 +19,6 @@ LCD4Bit_mod lcd = LCD4Bit_mod(2);
 COBD obd;
 
 //Key message
-char msgs[5][15] = {"Right Key OK ",
-                    "Up Key OK    ",
-                    "Down Key OK  ",
-                    "Left Key OK  ",
-                    "Select Key OK" };
 unsigned int  adc_key_val[5] ={30, 150, 360, 535, 760 };
 int NUM_KEYS = 5;
 int adc_key_in;
@@ -31,7 +26,7 @@ int key=-1;
 int oldkey=-1;
 uint8_t errors;
 unsigned long lastTick = millis();
-uint8_t modes[2] = {0, 5};
+uint8_t modes[2] = {0, 2};
 
 const char modePids[] = {PID_RPM, PID_SPEED, PID_THROTTLE, PID_ENGINE_LOAD,
 	PID_COOLANT_TEMP, PID_INTAKE_TEMP, PID_AMBIENT_TEMP, PID_MAF_FLOW,
@@ -70,13 +65,15 @@ bool showData(int index)
 	int value;
 	uint8_t mode = modes[index];
 	uint8_t pid = modePids[mode];
-	if (!obd.ReadSensor(pid, value))
-        /*
+    digitalWrite(13, HIGH);   // set the LED on
+	if (!obd.ReadSensor(pid, value)) {
         lcd.cursorTo(index + 1, 0);
         lcd.printIn(obd.recvBuf);
-        delay(1000);
-        */
+        delay(2000);
+        updateMode();
 		return false;
+	}
+	digitalWrite(13, LOW);   // set the LED off
 
 	if (pid == PID_RUNTIME) {
 		sprintf(buf, modeFmts[mode], (unsigned int)value / 60, (unsigned int)value % 60);
@@ -119,7 +116,6 @@ void setup()
 void loop()
 {
 	adc_key_in = analogRead(0);    // read the value from the sensor
-	digitalWrite(13, HIGH);
 	key = get_key(adc_key_in);		        // convert into key press
 
 	if (key != oldkey) {
@@ -156,24 +152,13 @@ void loop()
 			}
 		}
 	}
-	digitalWrite(13, LOW);
 
 	unsigned long curTick = millis();
-	if (curTick - lastTick > 1000) {
-		if (!showData(0)) {
-			errors++;
-		} else {
-			errors = 0;
-		}
-		if (!showData(1)) {
-			errors++;
-		} else {
-			errors = 0;
-		}
-		if (errors > 10) {
-			if (setupConnection()) {
-				errors = 0;
-			}
+	if (curTick - lastTick > 500) {
+		showData(0);
+		showData(1);
+		if (obd.errors > 10) {
+			setupConnection();
 		}
 		lastTick = curTick;
 	}
