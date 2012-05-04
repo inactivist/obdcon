@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "OBD.h"
 
-unsigned int COBD::hex2int(const char *p)
+unsigned int hex2uint16(const char *p)
 {
 	char c = *p;
 	unsigned int i = 0;
@@ -25,7 +25,8 @@ unsigned int COBD::hex2int(const char *p)
 	}
 	return i;
 }
-unsigned char COBD::hex2char(const char *p)
+
+unsigned char hex2uint8(const char *p)
 {
 	unsigned char c1 = *p;
 	unsigned char c2 = *(p + 1);
@@ -109,15 +110,14 @@ char COBD::ReadData()
 	return Serial.read();
 }
 
-void COBD::WriteData(const char* s)
+unsigned char COBD::WriteData(const char* s)
 {
-	Serial.write(s);
+	return Serial.write(s);
 }
 
 bool COBD::GetResponse(unsigned char pid)
 {
-	unsigned long currentMillis = millis();
-	bool searching = false;
+	unsigned long startTime = millis();
 	byte i = 0;
 	data = 0;
 
@@ -129,34 +129,31 @@ bool COBD::GetResponse(unsigned char pid)
                 // buffer overflow
                 break;
 			}
-			if (c == '>' && i > 3) {
+			if (c == '>' && i > 6) {
 				// prompt char reached
 				break;
 			}
 		} else {
-			unsigned int elapsed = millis() - currentMillis;
-			if (searching) {
-				if (elapsed > OBD_TIMEOUT_LONG) {
-					errors++;
-					break;
-				}
-			} else if (elapsed > 500) {
-				if (i >= 9) {
-					recvBuf[i] = 0;
-					searching = strstr(recvBuf, "SEARCHING") != 0;
-				}
-				if (!searching) {
-					break;
-				}
-			}
+		    recvBuf[i] = 0;
+		    unsigned int timeout;
+		    if (dataMode != 1 || strstr(recvBuf, "SEARCHING")) {
+                timeout = OBD_TIMEOUT_LONG;
+		    } else {
+		        timeout = OBD_TIMEOUT_SHORT;
+		    }
+		    if (millis() - startTime > timeout) {
+                // timeout
+                errors++;
+                break;
+		    }
 		}
 	}
+	recvBuf[i] = 0;
 
 	char *p = recvBuf;
-	recvBuf[i] = 0;
-	while (p = strstr(p, "41 ")) {
+	while ((p = strstr(p, "41 "))) {
         p += 3;
-        if (hex2char(p) == pid) {
+        if (hex2uint8(p) == pid) {
             errors = 0;
             p += 2;
             if (*p == ' ') p++;
@@ -164,7 +161,6 @@ bool COBD::GetResponse(unsigned char pid)
             return true;
         }
 	}
-	errors++;
 	data = recvBuf;
 	return false;
 }
