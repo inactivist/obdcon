@@ -45,17 +45,32 @@ unsigned char hex2uint8(const char *p)
 
 void COBD::Query(unsigned char pid)
 {
+#if 0
 	char cmd[8];
 	if (elmRevision >= 4)
         sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
     else
         sprintf(cmd, "%02X%02X\r", dataMode, pid);
+#else
+	char cmd[8];
+    sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
+#endif
 	WriteData(cmd);
 }
 
-bool COBD::ReadSensor(unsigned char pid, int& result)
+bool COBD::ReadSensor(byte pid, int& result, bool passive)
 {
-	Query(pid);
+    if (passive) {
+        bool hasData;
+        unsigned long tick = millis();
+        while (!(hasData = DataAvailable()) && millis() - tick < OBD_TIMEOUT_SHORT);
+        if (!hasData) {
+            errors++;
+            return false;
+        }
+    } else {
+        Query(pid);
+    }
 	if (!GetResponse(pid))
 		return false;
 
@@ -110,12 +125,12 @@ char COBD::ReadData()
 	return Serial.read();
 }
 
-unsigned char COBD::WriteData(const char* s)
+byte COBD::WriteData(const char* s)
 {
 	return Serial.write(s);
 }
 
-bool COBD::GetResponse(unsigned char pid)
+bool COBD::GetResponse(byte pid)
 {
 	unsigned long startTime = millis();
 	byte i = 0;
@@ -179,17 +194,16 @@ void COBD::Sleep(int seconds)
     }
 }
 
-bool COBD::Init()
+bool COBD::Init(bool passive)
 {
 	unsigned long currentMillis;
 	unsigned char n;
-	dataMode = 1;
 	char prompted;
 
-    data = recvBuf;
-    elmRevision = 0;
 	for (unsigned char i = 0; i < CMD_COUNT; i++) {
-		WriteData(initcmd[i]);
+        if (!passive) {
+            WriteData(initcmd[i]);
+        }
 		n = 0;
 		prompted = 0;
         currentMillis = millis();
@@ -228,8 +242,8 @@ bool COBD::Init()
                 break;
 			} else {
 				unsigned long elapsed = millis() - currentMillis;
-				if (elapsed > OBD_TIMEOUT_LONG) {
-				    // timeout
+				if (elapsed > OBD_TIMEOUT_INIT) {
+				    // init timeout
 				    //WriteData("\r");
 				    return false;
 				}

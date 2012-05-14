@@ -7,7 +7,9 @@
 
 #define OBD_TIMEOUT_SHORT 2000 /* ms */
 #define OBD_TIMEOUT_LONG 7000 /* ms */
+#define OBD_TIMEOUT_INIT 3000 /* ms */
 #define OBD_SERIAL_BAUDRATE 38400
+#define OBD_RECV_BUF_SIZE 40
 
 // mode 0 pids
 #define PID_RPM 0x0C
@@ -33,17 +35,24 @@ unsigned char hex2uint8(const char *p);
 class COBD
 {
 public:
-	bool Init();
-	bool ReadSensor(unsigned char pid, int& result);
-	char recvBuf[64];
+    COBD()
+    {
+        elmRevision = 0;
+        dataMode = 1;
+        errors = 0;
+        data = recvBuf;
+    }
+	bool Init(bool passive = false);
+	bool ReadSensor(byte pid, int& result, bool passive = false);
 	void Sleep(int seconds);
-	unsigned char dataMode;
-	unsigned char errors;
+	byte dataMode;
+	byte errors;
 	char elmRevision;
 	char* data;
+	char recvBuf[OBD_RECV_BUF_SIZE];
 protected:
-	void Query(unsigned char pid);
-	bool GetResponse(unsigned char pid);
+	void Query(byte pid);
+	bool GetResponse(byte pid);
 	int GetPercentageValue()
 	{
 		return (int)hex2uint8(data) * 100 / 255;
@@ -63,5 +72,5 @@ protected:
 private:
 	virtual bool DataAvailable();
 	virtual char ReadData();
-	virtual unsigned char WriteData(const char* s);
+	virtual byte WriteData(const char* s);
 };
