@@ -9,7 +9,7 @@
 #define OBD_TIMEOUT_LONG 7000 /* ms */
 #define OBD_TIMEOUT_INIT 3000 /* ms */
 #define OBD_SERIAL_BAUDRATE 38400
-#define OBD_RECV_BUF_SIZE 40
+#define OBD_RECV_BUF_SIZE 48
 
 // mode 0 pids
 #define PID_RPM 0x0C
@@ -40,32 +40,31 @@ public:
         elmRevision = 0;
         dataMode = 1;
         errors = 0;
-        data = recvBuf;
     }
 	bool Init(bool passive = false);
 	bool ReadSensor(byte pid, int& result, bool passive = false);
 	void Sleep(int seconds);
+	// Query and GetResponse for advanced usage only
+	void Query(byte pid);
+	char* GetResponse(byte pid, char* buffer);
 	byte dataMode;
 	byte errors;
 	char elmRevision;
-	char* data;
-	char recvBuf[OBD_RECV_BUF_SIZE];
+	//char recvBuf[OBD_RECV_BUF_SIZE];
 protected:
-	void Query(byte pid);
-	bool GetResponse(byte pid);
-	int GetPercentageValue()
+	static int GetPercentageValue(char* data)
 	{
 		return (int)hex2uint8(data) * 100 / 255;
 	}
-	int GetLargeValue()
+	static int GetLargeValue(char* data)
 	{
 		return hex2uint16(data);
 	}
-	int GetSmallValue()
+	static int GetSmallValue(char* data)
 	{
 		return hex2uint8(data);
 	}
-	int GetTemperatureValue()
+	static int GetTemperatureValue(char* data)
 	{
 		return (int)hex2uint8(data) - 40;
 	}
@@ -73,4 +72,5 @@ private:
 	virtual bool DataAvailable();
 	virtual char ReadData();
 	virtual byte WriteData(const char* s);
+	virtual byte WriteData(const char c);
 };

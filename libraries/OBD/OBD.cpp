@@ -6,7 +6,18 @@
 *************************************************************************/
 
 #include <Arduino.h>
+#include <avr/pgmspace.h>
 #include "OBD.h"
+
+#define INIT_CMD_COUNT 3
+#define MAX_CMD_LEN 6
+
+const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"atz\r", "ate0\r","atl1\r"};
+const char PROGMEM s_elm[] = "ELM327";
+const char PROGMEM s_searching[] = "SEARCHING";
+const char PROGMEM s_cmd_fmt[] = "%02X%02X 1\r";
+const char PROGMEM s_cmd_sleep[MAX_CMD_LEN] = "atlp\r";
+const char PROGMEM s_response_begin[] = "41 ";
 
 unsigned int hex2uint16(const char *p)
 {
@@ -45,16 +56,8 @@ unsigned char hex2uint8(const char *p)
 
 void COBD::Query(unsigned char pid)
 {
-#if 0
 	char cmd[8];
-	if (elmRevision >= 4)
-        sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
-    else
-        sprintf(cmd, "%02X%02X\r", dataMode, pid);
-#else
-	char cmd[8];
-    sprintf(cmd, "%02X%02X 1\r", dataMode, pid);
-#endif
+	sprintf_P(cmd, s_cmd_fmt, dataMode, pid);
 	WriteData(cmd);
 }
 
@@ -71,43 +74,46 @@ bool COBD::ReadSensor(byte pid, int& result, bool passive)
     } else {
         Query(pid);
     }
-	if (!GetResponse(pid))
+
+    char buffer[OBD_RECV_BUF_SIZE];
+    char* data = GetResponse(pid, buffer);
+    if (!data)
 		return false;
 
 	switch (pid) {
 	case PID_RPM:
-		result = GetLargeValue() >> 2;
+		result = GetLargeValue(data) >> 2;
 		break;
 	case PID_FUEL_PRESSURE:
-		result = GetSmallValue() * 3;
+		result = GetSmallValue(data) * 3;
 		break;
 	case PID_COOLANT_TEMP:
 	case PID_INTAKE_TEMP:
 	case PID_AMBIENT_TEMP:
-		result = GetTemperatureValue();
+		result = GetTemperatureValue(data);
 		break;
 	case PID_ABS_ENGINE_LOAD:
-		result = GetLargeValue() * 100 / 255;
+		result = GetLargeValue(data) * 100 / 255;
 		break;
 	case PID_MAF_FLOW:
-		result = GetLargeValue() / 100;
+		result = GetLargeValue(data) / 100;
 		break;
 	case PID_THROTTLE:
 	case PID_ENGINE_LOAD:
 	case PID_FUEL_LEVEL:
-		result = GetPercentageValue();
+		result = GetPercentageValue(data);
 		break;
 	case PID_SPEED:
 	case PID_BAROMETRIC:
 	case PID_INTAKE_PRESSURE:
-		result = GetSmallValue();
+		result = GetSmallValue(data);
 		break;
 	case PID_TIMING_ADVANCE:
-		result = (GetSmallValue() - 128) >> 1;
+		result = (GetSmallValue(data) - 128) >> 1;
 		break;
 	case PID_DISTANCE:
 	case PID_RUNTIME:
-		result = GetLargeValue();
+		result = GetLargeValue(data);
 		break;
 	default:
 		return false;
@@ -130,17 +136,21 @@ byte COBD::WriteData(const char* s)
 	return Serial.write(s);
 }
 
-bool COBD::GetResponse(byte pid)
+byte COBD::WriteData(const char c)
+{
+	return Serial.write(c);
+}
+
+char* COBD::GetResponse(byte pid, char* buffer)
 {
 	unsigned long startTime = millis();
 	byte i = 0;
-	data = 0;
 
 	for (;;) {
 		if (DataAvailable()) {
 			char c = ReadData();
-			recvBuf[i] = c;
-			if (++i == sizeof(recvBuf) - 1) {
+			buffer[i] = c;
+			if (++i == OBD_RECV_BUF_SIZE - 1) {
                 // buffer overflow
                 break;
 			}
@@ -149,9 +159,9 @@ bool COBD::GetResponse(byte pid)
 				break;
 			}
 		} else {
-		    recvBuf[i] = 0;
+		    buffer[i] = 0;
 		    unsigned int timeout;
-		    if (dataMode != 1 || strstr(recvBuf, "SEARCHING")) {
+		    if (dataMode != 1 || strstr_P(buffer, s_searching)) {
                 timeout = OBD_TIMEOUT_LONG;
 		    } else {
 		        timeout = OBD_TIMEOUT_SHORT;
@@ -163,34 +173,29 @@ bool COBD::GetResponse(byte pid)
 		    }
 		}
 	}
-	recvBuf[i] = 0;
+	buffer[i] = 0;
 
-	char *p = recvBuf;
-	while ((p = strstr(p, "41 "))) {
+	char *p = buffer;
+	while ((p = strstr_P(p, s_response_begin))) {
         p += 3;
         if (hex2uint8(p) == pid) {
             errors = 0;
             p += 2;
             if (*p == ' ') p++;
-            data = p;
-            return true;
+            return p;
         }
 	}
-	data = recvBuf;
-	return false;
+	return 0;
 }
-
-static const char* initcmd[] = {"atz\r", "ate0\r","atl1\r"};
-#define CMD_COUNT (sizeof(initcmd) / sizeof(initcmd[0]))
-static const char* s_elm = "ELM327";
-static const char* s_ok = "OK";
 
 void COBD::Sleep(int seconds)
 {
-    WriteData("atlp\r");
+    char cmd[MAX_CMD_LEN];
+    strcpy_P(cmd, s_cmd_sleep);
+    WriteData(cmd);
     if (seconds) {
-        delay((unsigned long)seconds * 1000);
-        WriteData("\r");
+        delay((unsigned long)seconds << 10);
+        WriteData('\r');
     }
 }
 
@@ -199,10 +204,13 @@ bool COBD::Init(bool passive)
 	unsigned long currentMillis;
 	unsigned char n;
 	char prompted;
+	char buffer[OBD_RECV_BUF_SIZE];
 
-	for (unsigned char i = 0; i < CMD_COUNT; i++) {
+	for (unsigned char i = 0; i < INIT_CMD_COUNT; i++) {
         if (!passive) {
-            WriteData(initcmd[i]);
+            char cmd[MAX_CMD_LEN];
+            strcpy_P(cmd, s_initcmd[i]);
+            WriteData(cmd);
         }
 		n = 0;
 		prompted = 0;
@@ -212,15 +220,15 @@ bool COBD::Init(bool passive)
 				char c = ReadData();
 				if (i == 0) {
                     // reset command
-					if (n < sizeof(s_elm)) {
-                        if (c == s_elm[n]) {
-							recvBuf[n++] = c;
+					if (n < sizeof(s_elm) - 1) {
+                        if (c == pgm_read_byte(&s_elm[n])) {
+							buffer[n++] = c;
 						}
-					} else if (n < sizeof(recvBuf) - 1) {
-						recvBuf[n++] = c;
+					} else if (n < OBD_RECV_BUF_SIZE - 1) {
+						buffer[n++] = c;
 					}
 				} else {
-				    if (n < sizeof(s_ok) && c == s_ok[n]) {
+				    if ((n == 0 && c == 'O') || (n == 1 && c == 'K')) {
                         n++;
 				    }
 				}
@@ -230,14 +238,14 @@ bool COBD::Init(bool passive)
             } else if (prompted) {
                 if (i == 0) {
                     // reset command
-                   	recvBuf[n] = 0;
-                    if (n >= sizeof(s_elm)) {
-                       	char *p = strstr(recvBuf, "1.");
-                        elmRevision = p ? *(p + 2) - '0' : 0;
+                   	buffer[n] = 0;
+                    if (n > sizeof(s_elm) - 1) {
+                       	char *p = strchr(buffer, '.');
+                        elmRevision = p ? *(p + 1) - '0' : 0;
                         break;
                     }
                 } else {
-                    if (n >= sizeof(s_ok)) break;
+                    if (n >= 2) break;
                 }
                 break;
 			} else {
