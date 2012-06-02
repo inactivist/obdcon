@@ -10,8 +10,6 @@
 #include <LCD4Bit_mod.h>
 #include <OBD.h>
 
-int get_key(unsigned int input);
-
 //create object to control an LCD.
 LCD4Bit_mod lcd = LCD4Bit_mod(2);
 
