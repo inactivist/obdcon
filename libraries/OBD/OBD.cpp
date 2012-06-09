@@ -12,6 +12,10 @@
 #define INIT_CMD_COUNT 3
 #define MAX_CMD_LEN 6
 
+#ifndef OBDUART
+#define OBDUART Serial
+#endif
+
 const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"atz\r", "ate0\r","atl1\r"};
 const char PROGMEM s_elm[] = "ELM327";
 const char PROGMEM s_searching[] = "SEARCHING";
@@ -74,71 +78,27 @@ bool COBD::ReadSensor(byte pid, int& result, bool passive)
     } else {
         Query(pid);
     }
-
-    char buffer[OBD_RECV_BUF_SIZE];
-    char* data = GetResponse(pid, buffer);
-    if (!data)
-		return false;
-
-	switch (pid) {
-	case PID_RPM:
-		result = GetLargeValue(data) >> 2;
-		break;
-	case PID_FUEL_PRESSURE:
-		result = GetSmallValue(data) * 3;
-		break;
-	case PID_COOLANT_TEMP:
-	case PID_INTAKE_TEMP:
-	case PID_AMBIENT_TEMP:
-		result = GetTemperatureValue(data);
-		break;
-	case PID_ABS_ENGINE_LOAD:
-		result = GetLargeValue(data) * 100 / 255;
-		break;
-	case PID_MAF_FLOW:
-		result = GetLargeValue(data) / 100;
-		break;
-	case PID_THROTTLE:
-	case PID_ENGINE_LOAD:
-	case PID_FUEL_LEVEL:
-		result = GetPercentageValue(data);
-		break;
-	case PID_SPEED:
-	case PID_BAROMETRIC:
-	case PID_INTAKE_PRESSURE:
-		result = GetSmallValue(data);
-		break;
-	case PID_TIMING_ADVANCE:
-		result = (GetSmallValue(data) - 128) >> 1;
-		break;
-	case PID_DISTANCE:
-	case PID_RUNTIME:
-		result = GetLargeValue(data);
-		break;
-	default:
-		return false;
-	}
-	return true;
+    return GetResponse(pid, result);
 }
 
 bool COBD::DataAvailable()
 {
-	return Serial.available();
+	return OBDUART.available();
 }
 
 char COBD::ReadData()
 {
-	return Serial.read();
+	return OBDUART.read();
 }
 
 byte COBD::WriteData(const char* s)
 {
-	return Serial.write(s);
+	return OBDUART.write(s);
 }
 
 byte COBD::WriteData(const char c)
 {
-	return Serial.write(c);
+	return OBDUART.write(c);
 }
 
 char* COBD::GetResponse(byte pid, char* buffer)
@@ -186,6 +146,58 @@ char* COBD::GetResponse(byte pid, char* buffer)
         }
 	}
 	return 0;
+}
+
+
+bool COBD::GetResponse(byte pid, int& result)
+{
+    char buffer[OBD_RECV_BUF_SIZE];
+    char* data = GetResponse(pid, buffer);
+    if (!data) {
+        // try recover next time
+        WriteData('\r');
+		return false;
+    }
+
+	switch (pid) {
+	case PID_RPM:
+		result = GetLargeValue(data) >> 2;
+		break;
+	case PID_FUEL_PRESSURE:
+		result = GetSmallValue(data) * 3;
+		break;
+	case PID_COOLANT_TEMP:
+	case PID_INTAKE_TEMP:
+	case PID_AMBIENT_TEMP:
+		result = GetTemperatureValue(data);
+		break;
+	case PID_ABS_ENGINE_LOAD:
+		result = GetLargeValue(data) * 100 / 255;
+		break;
+	case PID_MAF_FLOW:
+		result = GetLargeValue(data) / 100;
+		break;
+	case PID_THROTTLE:
+	case PID_ENGINE_LOAD:
+	case PID_FUEL_LEVEL:
+		result = GetPercentageValue(data);
+		break;
+	case PID_SPEED:
+	case PID_BAROMETRIC:
+	case PID_INTAKE_PRESSURE:
+		result = GetSmallValue(data);
+		break;
+	case PID_TIMING_ADVANCE:
+		result = (GetSmallValue(data) - 128) >> 1;
+		break;
+	case PID_DISTANCE:
+	case PID_RUNTIME:
+		result = GetLargeValue(data);
+		break;
+	default:
+		return false;
+	}
+	return true;
 }
 
 void COBD::Sleep(int seconds)

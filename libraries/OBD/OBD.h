@@ -46,7 +46,9 @@ public:
 	void Sleep(int seconds);
 	// Query and GetResponse for advanced usage only
 	void Query(byte pid);
+	bool GetResponse(byte pid, int& result);
 	char* GetResponse(byte pid, char* buffer);
+	virtual bool DataAvailable();
 	byte dataMode;
 	byte errors;
 	char elmRevision;
@@ -69,7 +71,6 @@ protected:
 		return (int)hex2uint8(data) - 40;
 	}
 private:
-	virtual bool DataAvailable();
 	virtual char ReadData();
 	virtual byte WriteData(const char* s);
 	virtual byte WriteData(const char c);
