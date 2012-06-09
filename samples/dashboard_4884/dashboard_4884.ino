@@ -109,12 +109,12 @@ public:
                 int value;
                 lcd.LCD_write_string(0, 3, "Wait ECU start", MENU_NORMAL);
                 do {
-                  delay(2000);
+                  delay(1000);
                 } while (!ReadSensor(PID_RPM, value));
                 lcd.LCD_write_string(0, 3, "ECU started   ", MENU_NORMAL);
                 lcd.LCD_write_string(0, 4, "Wait ignition ", MENU_NORMAL);
                 do {
-                  delay(50);
+                  delay(100);
                 } while (!ReadSensor(PID_RPM, value) || value == 0);                         
                 lcd.LCD_write_string(0, 4, "Engine started", MENU_NORMAL);
                 delay(1000);                
