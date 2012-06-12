@@ -100,11 +100,11 @@ public:
                 while (!Init()) {
                   lcd.LCD_putchar('.');
                 }
-                char *p = strchr(recvBuf, '\r');
-                if (p) *p = 0;
                 lcd.LCD_clear();
                 lcd.LCD_write_string(0, 0, "Connected!", MENU_NORMAL);
-		lcd.LCD_write_string(0, 1, recvBuf, MENU_NORMAL);
+                char buf[8];
+                sprintf(buf, "Rev. %d", revision);
+		lcd.LCD_write_string(0, 1, buf, MENU_NORMAL);
 
                 int value;
                 lcd.LCD_write_string(0, 3, "Wait ECU start", MENU_NORMAL);

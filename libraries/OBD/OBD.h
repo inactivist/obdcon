@@ -1,5 +1,5 @@
 /*************************************************************************
-* OBD-II (ELM327) data accessing library for Arduino
+* OBD-II data accessing library for Arduino
 * Distributed under GPL v2.0
 * Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
 * All rights reserved.
@@ -37,7 +37,7 @@ class COBD
 public:
     COBD()
     {
-        elmRevision = 0;
+        revision = 0;
         dataMode = 1;
         errors = 0;
     }
@@ -51,7 +51,7 @@ public:
 	virtual bool DataAvailable();
 	byte dataMode;
 	byte errors;
-	char elmRevision;
+	char revision;
 	//char recvBuf[OBD_RECV_BUF_SIZE];
 protected:
 	static int GetPercentageValue(char* data)

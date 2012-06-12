@@ -65,7 +65,7 @@ bool showData(int index)
 	if (!obd.ReadSensor(pid, value)) {
                 // display received data on error
 		lcd.cursorTo(index + 1, 0);
-		lcd.printIn(obd.recvBuf);
+		lcd.printIn("Error");
 		delay(2000);
 		updateMode();
 		return false;
@@ -96,7 +96,8 @@ bool setupConnection()
   lcd.clear();
   lcd.printIn("Connected!");
   lcd.cursorTo(2, 0);
-  lcd.printIn(obd.recvBuf);
+  sprintf(buf, "Rev. %d", obd.revision);
+  lcd.printIn(buf);
   delay(1000);
   updateMode();
   return true;

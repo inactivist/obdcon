@@ -1,5 +1,5 @@
 /*************************************************************************
-* OBD-II (ELM327) data accessing library for Arduino
+* OBD-II data accessing library for Arduino
 * Distributed under GPL v2.0
 * Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
 * All rights reserved.
@@ -253,7 +253,7 @@ bool COBD::Init(bool passive)
                    	buffer[n] = 0;
                     if (n > sizeof(s_elm) - 1) {
                        	char *p = strchr(buffer, '.');
-                        elmRevision = p ? *(p + 1) - '0' : 0;
+                        revision = p ? *(p + 1) - '0' : 0;
                         break;
                     }
                 } else {
