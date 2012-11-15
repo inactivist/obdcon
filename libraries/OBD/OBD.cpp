@@ -1,5 +1,5 @@
 /*************************************************************************
-* OBD-II data accessing library for Arduino
+* OBD-II (ELM327) data accessing library for Arduino
 * Distributed under GPL v2.0
 * Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
 * All rights reserved.
@@ -9,14 +9,14 @@
 #include <avr/pgmspace.h>
 #include "OBD.h"
 
-#define INIT_CMD_COUNT 3
+#define INIT_CMD_COUNT 7
 #define MAX_CMD_LEN 6
 
 #ifndef OBDUART
 #define OBDUART Serial
 #endif
 
-const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"atz\r", "ate0\r","atl1\r"};
+const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"ATZ\r","ATE0\r","ATL1\r","ATI\r","0100\r","0120\r","0140\r"};
 const char PROGMEM s_elm[] = "ELM327";
 const char PROGMEM s_searching[] = "SEARCHING";
 const char PROGMEM s_cmd_fmt[] = "%02X%02X 1\r";
@@ -30,6 +30,8 @@ unsigned int hex2uint16(const char *p)
 	for (char n = 0; c && n < 4; c = *(++p)) {
 		if (c >= 'A' && c <= 'F') {
 			c -= 7;
+		} else if (c>='a' && c<='f') {
+			c -= 39;
         } else if (c == ' ') {
             continue;
         } else if (c < '0' || c > '9') {
@@ -47,11 +49,15 @@ unsigned char hex2uint8(const char *p)
 	unsigned char c2 = *(p + 1);
 	if (c1 >= 'A' && c1 <= 'F')
 		c1 -= 7;
+    else if (c1 >='a' && c1 <= 'f')
+        c1 -= 39;
 	else if (c1 < '0' || c1 > '9')
 		return 0;
 
 	if (c2 >= 'A' && c2 <= 'F')
 		c2 -= 7;
+    else if (c2 >= 'a' && c2 <= 'f')
+        c2 -= 39;
 	else if (c2 < '0' || c2 > '9')
 		return 0;
 
@@ -91,14 +97,14 @@ char COBD::ReadData()
 	return OBDUART.read();
 }
 
-byte COBD::WriteData(const char* s)
+void COBD::WriteData(const char* s)
 {
-	return OBDUART.write(s);
+	OBDUART.write(s);
 }
 
-byte COBD::WriteData(const char c)
+void COBD::WriteData(const char c)
 {
-	return OBDUART.write(c);
+	OBDUART.write(c);
 }
 
 char* COBD::GetResponse(byte pid, char* buffer)
@@ -138,27 +144,18 @@ char* COBD::GetResponse(byte pid, char* buffer)
 	char *p = buffer;
 	while ((p = strstr_P(p, s_response_begin))) {
         p += 3;
-        if (hex2uint8(p) == pid) {
+        if (pid == 0 || hex2uint8(p) == pid) {
             errors = 0;
             p += 2;
-            if (*p == ' ') p++;
-            return p;
+            if (*p == ' ')
+                return p + 1;
         }
 	}
 	return 0;
 }
 
-
-bool COBD::GetResponse(byte pid, int& result)
+bool COBD::GetParsedData(byte pid, char* data, int& result)
 {
-    char buffer[OBD_RECV_BUF_SIZE];
-    char* data = GetResponse(pid, buffer);
-    if (!data) {
-        // try recover next time
-        WriteData('\r');
-		return false;
-    }
-
 	switch (pid) {
 	case PID_RPM:
 		result = GetLargeValue(data) >> 2;
@@ -200,6 +197,30 @@ bool COBD::GetResponse(byte pid, int& result)
 	return true;
 }
 
+bool COBD::GetResponse(byte pid, int& result)
+{
+    char buffer[OBD_RECV_BUF_SIZE];
+    char* data = GetResponse(pid, buffer);
+    if (!data) {
+        // try recover next time
+        WriteData('\r');
+		return false;
+    }
+    return GetParsedData(pid, data, result);
+}
+
+bool COBD::GetResponsePassive(byte& pid, int& result)
+{
+    char buffer[OBD_RECV_BUF_SIZE];
+    char* data = GetResponse(0, buffer);
+    if (!data) {
+        // try recover next time
+        return false;
+    }
+    pid = hex2uint8(data - 3);
+    return GetParsedData(pid, data, result);
+}
+
 void COBD::Sleep(int seconds)
 {
     char cmd[MAX_CMD_LEN];
@@ -218,6 +239,7 @@ bool COBD::Init(bool passive)
 	char prompted;
 	char buffer[OBD_RECV_BUF_SIZE];
 
+    revision = 0;
 	for (unsigned char i = 0; i < INIT_CMD_COUNT; i++) {
         if (!passive) {
             char cmd[MAX_CMD_LEN];
@@ -230,34 +252,19 @@ bool COBD::Init(bool passive)
 		for (;;) {
 			if (DataAvailable()) {
 				char c = ReadData();
-				if (i == 0) {
-                    // reset command
-					if (n < sizeof(s_elm) - 1) {
-                        if (c == pgm_read_byte(&s_elm[n])) {
-							buffer[n++] = c;
-						}
-					} else if (n < OBD_RECV_BUF_SIZE - 1) {
-						buffer[n++] = c;
-					}
-				} else {
-				    if ((n == 0 && c == 'O') || (n == 1 && c == 'K')) {
-                        n++;
-				    }
-				}
                 if (c == '>') {
+                    buffer[n] = 0;
                     prompted++;
+                } else if (n < OBD_RECV_BUF_SIZE - 1) {
+                    buffer[n++] = c;
                 }
             } else if (prompted) {
-                if (i == 0) {
-                    // reset command
-                   	buffer[n] = 0;
-                    if (n > sizeof(s_elm) - 1) {
-                       	char *p = strchr(buffer, '.');
-                        revision = p ? *(p + 1) - '0' : 0;
-                        break;
+                if (strstr_P(buffer, s_elm)) {
+                    // get adapter version
+                    char *p = strchr(buffer, '.');
+                    if (p) {
+                        revision = hex2uint8(p + 1);
                     }
-                } else {
-                    if (n >= 2) break;
                 }
                 break;
 			} else {
