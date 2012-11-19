@@ -8,10 +8,11 @@
 #define OBD_TIMEOUT_SHORT 2000 /* ms */
 #define OBD_TIMEOUT_LONG 7000 /* ms */
 #define OBD_TIMEOUT_INIT 3000 /* ms */
-#define OBD_SERIAL_BAUDRATE 38400
-#define OBD_RECV_BUF_SIZE 48
+#define OBD_RECV_BUF_SIZE 48 /* bytes */
 
-// mode 0 pids
+#define DEFAULT_ADAPTER_BAUDRATE 38400
+
+// mode 01 pids
 #define PID_RPM 0x0C
 #define PID_SPEED 0x0D
 #define PID_THROTTLE 0x11

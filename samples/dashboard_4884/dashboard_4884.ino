@@ -10,6 +10,14 @@
 #include <OBD.h>
 #include <LCD4884.h>
 
+// the following line toggles between hardware serial and software serial
+// #define USE_SOFTSERIAL
+
+#ifdef USE_SOFTSERIAL
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(11, 12); // RX, TX
+#endif
+
 //keypad debounce parameter
 #define DEBOUNCE_MAX 15
 #define DEBOUNCE_ON  10
@@ -97,9 +105,12 @@ public:
         {
                 lcd.LCD_clear();
                 lcd.LCD_write_string(0, 0, "Connecting..", MENU_NORMAL);
-                while (!Init()) {
+                for (int n = 0; !Init(); n++) {
                   lcd.LCD_putchar('.');
+                  if (n == 3) lcd.backlight(OFF);
                 }
+
+                lcd.backlight(ON); //Turn on the backlight
                 lcd.LCD_clear();
                 lcd.LCD_write_string(0, 0, "Connected!", MENU_NORMAL);
                 char buf[8];
@@ -188,7 +199,7 @@ public:
 				DisplayData3();
 				break;
 			}
-                        if (errors > 10) {
+                        if (errors > 5) {
                             lcd.backlight(OFF);
                             return;
                         }
@@ -204,8 +215,8 @@ private:
             if (ReadSensor(PID_SPEED, value)) {
 		ShowSpeed(value);
             }
-            if (ReadSensor(PID_THROTTLE, value)) {
-		ShowThrottle(value);
+            if (ReadSensor(PID_ENGINE_LOAD, value)) {
+		ShowEngineLoad(value);
             }
 	}
 	void DisplayData2()
@@ -255,7 +266,7 @@ private:
               lcd.LCD_write_string(24, 5, buf, MENU_NORMAL);
             }
 	}
-	void ShowThrottle(uint8_t value)
+	void ShowEngineLoad(uint8_t value)
 	{
 		ShowProgressBarV(70, 1, value / 10);
 		lcd.LCD_write_string(78, 1, "%", MENU_NORMAL);
@@ -297,7 +308,7 @@ private:
 		case 0:
 			lcd.LCD_write_string(48, 2, "RPM", MENU_NORMAL);
 			lcd.LCD_write_string(42, 5, "kph", MENU_NORMAL);
-			lcd.LCD_write_string(66, 0, "THR", MENU_NORMAL);
+			lcd.LCD_write_string(66, 0, "ENG", MENU_NORMAL);
 			break;
 		case 1:
 			lcd.LCD_write_string(48, 2, "RPM", MENU_NORMAL);
@@ -313,6 +324,18 @@ private:
 			break;
 		}
 	}
+#ifdef USE_SOFTSERIAL
+        // override data communication functions
+        bool DataAvailable() { return mySerial.available(); }
+        char ReadData()
+        {
+          char c = mySerial.read();
+          Serial.write(c);
+          return c;
+        }
+        void WriteData(const char* s) { mySerial.write(s); }
+        void WriteData(const char c) { mySerial.write(c); }
+#endif
 	char displayMode;
         int value;
 };
@@ -354,13 +377,16 @@ void setup()
   lcd.LCD_init();
   lcd.LCD_clear();
 
-  lcd.backlight(ON);//Turn on the backlight
-  //lcd.backlight(OFF); // Turn off the backlight  
+  lcd.backlight(ON); // Turn on the backlight  
   
   pinMode(13, OUTPUT);
 
-  Serial.begin(38400);
-  //softSerial.begin(38400);
+#ifndef USE_SOFTSERIAL
+  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
+#else
+  Serial.begin(9600);
+  mySerial.begin(DEFAULT_ADAPTER_BAUDRATE);
+#endif
 }
 
 // The followinging are interrupt-driven keypad reading functions
