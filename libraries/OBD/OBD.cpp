@@ -264,6 +264,7 @@ bool COBD::Init(bool passive)
                     char *p = strchr(buffer, '.');
                     if (p) {
                         revision = hex2uint8(p + 1);
+                        if ((revision & 0xf0) == 0) revision <<= 8;
                     }
                 }
                 break;
