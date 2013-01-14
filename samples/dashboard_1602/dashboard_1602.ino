@@ -107,7 +107,7 @@ void setup()
 {
   pinMode(13, OUTPUT);  //we'll use the debug LED to output a heartbeat
   lcd.init();
-  Serial.begin(OBD_SERIAL_BAUDRATE);
+  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
   setupConnection();
 }
 

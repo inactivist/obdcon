@@ -1,10 +1,11 @@
 /*************************************************************************
 * Sample sketch based on OBD-II library for Arduino
 * Distributed under GPL v2.0
-* Copyright (c) 2012 Stanley Huang <stanleyhuangyc@gmail.com>
+* Copyright (c) 2012-2013 Stanley Huang <stanleyhuangyc@gmail.com>
 * All rights reserved.
 *************************************************************************/
 
+#include <Arduino.h>
 #include <OBD.h>
 
 COBD obd;
@@ -14,7 +15,7 @@ void setup()
   // we'll use the debug LED as output
   pinMode(13, OUTPUT);  
   // start serial communication at the adapter defined baudrate
-  Serial.begin(OBD_SERIAL_BAUDRATE);
+  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
   // initiate OBD-II connection until success
   while (!obd.Init());  
 }

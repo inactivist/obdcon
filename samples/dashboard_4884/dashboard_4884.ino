@@ -6,7 +6,7 @@
 * All rights reserved.
 *************************************************************************/
 
-#include <arduino.h>
+#include <Arduino.h>
 #include <OBD.h>
 #include <LCD4884.h>
 
