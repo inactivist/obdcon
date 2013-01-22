@@ -8,11 +8,18 @@
 #define OBD_TIMEOUT_SHORT 2000 /* ms */
 #define OBD_TIMEOUT_LONG 7000 /* ms */
 #define OBD_TIMEOUT_INIT 3000 /* ms */
-#define OBD_RECV_BUF_SIZE 48 /* bytes */
+#define OBD_SERIAL_BAUDRATE 38400
+#define OBD_RECV_BUF_SIZE 48
 
-#define DEFAULT_ADAPTER_BAUDRATE 38400
+#ifndef OBDUART
+#ifdef __AVR_ATmega32U4__ /* for Leonardo */
+#define OBDUART Serial1
+#else
+#define OBDUART Serial
+#endif
+#endif
 
-// mode 01 pids
+// mode 0 pids
 #define PID_RPM 0x0C
 #define PID_SPEED 0x0D
 #define PID_THROTTLE 0x11

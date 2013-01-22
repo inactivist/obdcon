@@ -12,10 +12,6 @@
 #define INIT_CMD_COUNT 7
 #define MAX_CMD_LEN 6
 
-#ifndef OBDUART
-#define OBDUART Serial
-#endif
-
 const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"ATZ\r","ATE0\r","ATL1\r","ATI\r","0100\r","0120\r","0140\r"};
 const char PROGMEM s_elm[] = "ELM327";
 const char PROGMEM s_searching[] = "SEARCHING";
@@ -264,7 +260,6 @@ bool COBD::Init(bool passive)
                     char *p = strchr(buffer, '.');
                     if (p) {
                         revision = hex2uint8(p + 1);
-                        if ((revision & 0xf0) == 0) revision <<= 8;
                     }
                 }
                 break;
