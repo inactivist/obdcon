@@ -15,7 +15,7 @@ void setup()
   // we'll use the debug LED as output
   pinMode(13, OUTPUT);  
   // start serial communication at the adapter defined baudrate
-  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
+  OBDUART.begin(OBD_SERIAL_BAUDRATE);
   // initiate OBD-II connection until success
   while (!obd.Init());  
 }
