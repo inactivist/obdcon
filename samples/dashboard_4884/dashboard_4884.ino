@@ -45,6 +45,70 @@ byte button_flag[NUM_KEYS];
 // initial gauge mode
 char mode = 0;
 
+// The followinging are interrupt-driven keypad reading functions
+// which includes DEBOUNCE ON/OFF mechanism, and continuous pressing detection
+
+// Convert ADC value to key number
+char get_key(unsigned int input)
+{
+  char k;
+
+  for (k = 0; k < NUM_KEYS; k++)
+  {
+    if (input < adc_key_val[k])
+    {
+
+      return k;
+    }
+  }
+
+  if (k >= NUM_KEYS)
+    k = -1;     // No valid key pressed
+
+  return k;
+}
+
+void update_adc_key(){
+  int adc_key_in;
+  char key_in;
+  byte i;
+
+  adc_key_in = analogRead(0);
+  key_in = get_key(adc_key_in);
+  for(i=0; i<NUM_KEYS; i++)
+  {
+    if(key_in==i)  //one key is pressed 
+    { 
+      if(button_count[i]<DEBOUNCE_MAX)
+      {
+        button_count[i]++;
+        if(button_count[i]>DEBOUNCE_ON)
+        {
+          if(button_status[i] == 0)
+          {
+            button_flag[i] = 1;
+            button_status[i] = 1; //button debounced to 'pressed' status
+          }
+
+        }
+      }
+
+    }
+    else // no button pressed
+    {
+      if (button_count[i] >0)
+      {  
+        button_flag[i] = 0;	
+        button_count[i]--;
+        if(button_count[i]<DEBOUNCE_OFF){
+          button_status[i]=0;   //button debounced to 'released' status
+        }
+      }
+    }
+
+  }
+}
+
 void ShowProgressBarV(byte x, byte y, byte val /* 0~10 */)
 {
 	byte j = 10 - val;
@@ -87,6 +151,7 @@ byte CheckPressedKey()
 void waitfor_OKkey(){
   byte i;
   byte key = 0xFF;
+  update_adc_key();
   while (key!= CENTER_KEY){
     for(i=0; i<NUM_KEYS; i++){
       if(button_flag[i] !=0){
@@ -113,17 +178,14 @@ public:
                 lcd.backlight(ON); //Turn on the backlight
                 lcd.LCD_clear();
                 lcd.LCD_write_string(0, 0, "Connected!", MENU_NORMAL);
-                char buf[8];
-                sprintf(buf, "Rev. %d", revision);
-		lcd.LCD_write_string(0, 1, buf, MENU_NORMAL);
 
                 int value;
-                lcd.LCD_write_string(0, 3, "Wait ECU start", MENU_NORMAL);
+                lcd.LCD_write_string(0, 1, "Wait ECU start", MENU_NORMAL);
                 do {
                   delay(1000);
                 } while (!ReadSensor(PID_RPM, value));
-                lcd.LCD_write_string(0, 3, "ECU started   ", MENU_NORMAL);
-                lcd.LCD_write_string(0, 4, "Wait ignition ", MENU_NORMAL);
+                lcd.LCD_write_string(0, 2, "ECU started   ", MENU_NORMAL);
+                lcd.LCD_write_string(0, 3, "Wait ignition ", MENU_NORMAL);
                 do {
                   delay(100);
                 } while (!ReadSensor(PID_RPM, value) || value == 0);                         
@@ -142,6 +204,7 @@ public:
 		dataMode = 1;
                 lcd.backlight(ON);
 		for (;;) {
+                        update_adc_key();
 			key = CheckPressedKey();
 			if (key != -1) {
 				switch (key) {
@@ -358,6 +421,7 @@ void setup()
     button_flag[i]=0;
   }
 
+#ifdef __AVR_ATmega32U4__
   // Setup timer2 -- Prescaler/256
   TCCR2A &= ~((1<<WGM21) | (1<<WGM20));
   TCCR2B &= ~(1<<WGM22);
@@ -373,6 +437,7 @@ void setup()
   TIMSK2 = (1<<TOIE2);    
 
   SREG|=1<<SREG_I;
+#endif
 
   lcd.LCD_init();
   lcd.LCD_clear();
@@ -382,82 +447,22 @@ void setup()
   pinMode(13, OUTPUT);
 
 #ifndef USE_SOFTSERIAL
-  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
+  OBDUART.begin(OBD_SERIAL_BAUDRATE);
 #else
   Serial.begin(9600);
-  mySerial.begin(DEFAULT_ADAPTER_BAUDRATE);
+  mySerial.begin(OBD_SERIAL_BAUDRATE);
 #endif
-}
-
-// The followinging are interrupt-driven keypad reading functions
-// which includes DEBOUNCE ON/OFF mechanism, and continuous pressing detection
-
-// Convert ADC value to key number
-char get_key(unsigned int input)
-{
-  char k;
-
-  for (k = 0; k < NUM_KEYS; k++)
-  {
-    if (input < adc_key_val[k])
-    {
-
-      return k;
-    }
-  }
-
-  if (k >= NUM_KEYS)
-    k = -1;     // No valid key pressed
-
-  return k;
-}
-
-void update_adc_key(){
-  int adc_key_in;
-  char key_in;
-  byte i;
-
-  adc_key_in = analogRead(0);
-  key_in = get_key(adc_key_in);
-  for(i=0; i<NUM_KEYS; i++)
-  {
-    if(key_in==i)  //one key is pressed 
-    { 
-      if(button_count[i]<DEBOUNCE_MAX)
-      {
-        button_count[i]++;
-        if(button_count[i]>DEBOUNCE_ON)
-        {
-          if(button_status[i] == 0)
-          {
-            button_flag[i] = 1;
-            button_status[i] = 1; //button debounced to 'pressed' status
-          }
-
-        }
-      }
-
-    }
-    else // no button pressed
-    {
-      if (button_count[i] >0)
-      {  
-        button_flag[i] = 0;	
-        button_count[i]--;
-        if(button_count[i]<DEBOUNCE_OFF){
-          button_status[i]=0;   //button debounced to 'released' status
-        }
-      }
-    }
-
-  }
 }
 
 // Timer2 interrupt routine -
 // 1/(160000000/256/(256-6)) = 4ms interval
 
+#ifdef __AVR_ATmega32U4__
+
 ISR(TIMER2_OVF_vect) {  
   TCNT2  = 6;
   update_adc_key();
 }
+
+#endif
 
