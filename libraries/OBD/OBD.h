@@ -59,7 +59,6 @@ public:
 	virtual bool DataAvailable();
 	byte dataMode;
 	byte errors;
-	byte revision;
 	//char recvBuf[OBD_RECV_BUF_SIZE];
 protected:
     static bool GetParsedData(byte pid, char* data, int& result);

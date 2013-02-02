@@ -13,7 +13,6 @@
 #define MAX_CMD_LEN 6
 
 const char PROGMEM s_initcmd[INIT_CMD_COUNT][MAX_CMD_LEN] = {"ATZ\r","ATE0\r","ATL1\r","ATI\r","0100\r","0120\r","0140\r"};
-const char PROGMEM s_elm[] = "ELM327";
 const char PROGMEM s_searching[] = "SEARCHING";
 const char PROGMEM s_cmd_fmt[] = "%02X%02X 1\r";
 const char PROGMEM s_cmd_sleep[MAX_CMD_LEN] = "atlp\r";
@@ -235,15 +234,14 @@ bool COBD::Init(bool passive)
 	char prompted;
 	char buffer[OBD_RECV_BUF_SIZE];
 
-    revision = 0;
 	for (unsigned char i = 0; i < INIT_CMD_COUNT; i++) {
         if (!passive) {
             char cmd[MAX_CMD_LEN];
             strcpy_P(cmd, s_initcmd[i]);
             WriteData(cmd);
         }
-		n = 0;
-		prompted = 0;
+	n = 0;
+	prompted = 0;
         currentMillis = millis();
 		for (;;) {
 			if (DataAvailable()) {
@@ -255,15 +253,8 @@ bool COBD::Init(bool passive)
                     buffer[n++] = c;
                 }
             } else if (prompted) {
-                if (strstr_P(buffer, s_elm)) {
-                    // get adapter version
-                    char *p = strchr(buffer, '.');
-                    if (p) {
-                        revision = hex2uint8(p + 1);
-                    }
-                }
                 break;
-			} else {
+		} else {
 				unsigned long elapsed = millis() - currentMillis;
 				if (elapsed > OBD_TIMEOUT_INIT) {
 				    // init timeout

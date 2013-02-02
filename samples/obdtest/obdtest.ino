@@ -31,7 +31,6 @@ public:
         char prompted;
         char buffer[OBD_RECV_BUF_SIZE];
 
-        revision = 0;
         for (unsigned char i = 0; i < INIT_CMD_COUNT; i++) {
             lcd.clear();
             lcd.cursorTo(1, 0);
@@ -56,13 +55,6 @@ public:
                             lcd.print(c);
                     }
                 } else if (prompted) {
-                    if (initcmd[i][2] == 'I') {
-                        // get adapter version
-                        char *p = strchr(buffer, '.');
-                        if (p) {
-                            revision = hex2uint8(p + 1);
-                        }
-                    }
                     break;
                 } else {
                     unsigned long elapsed = millis() - currentMillis;

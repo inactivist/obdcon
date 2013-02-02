@@ -95,9 +95,6 @@ bool setupConnection()
   }
   lcd.clear();
   lcd.printIn("Connected!");
-  lcd.cursorTo(2, 0);
-  sprintf(buf, "Rev. %d", obd.revision);
-  lcd.printIn(buf);
   delay(1000);
   updateMode();
   return true;
@@ -107,7 +104,7 @@ void setup()
 {
   pinMode(13, OUTPUT);  //we'll use the debug LED to output a heartbeat
   lcd.init();
-  Serial.begin(DEFAULT_ADAPTER_BAUDRATE);
+  OBDUART.begin(OBD_SERIAL_BAUDRATE);
   setupConnection();
 }
 
