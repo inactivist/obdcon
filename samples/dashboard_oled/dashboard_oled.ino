@@ -13,14 +13,6 @@
 
 #define OLED_ADDRESS 0x27
 
-// the following line toggles between hardware serial and software serial
-//#define USE_SOFTSERIAL
-
-#ifdef USE_SOFTSERIAL
-#include <SoftwareSerial.h>
-SoftwareSerial mySerial(11, 12); // RX, TX
-#endif
-
 const char PROGMEM font16x32[][32] = {
 {0x00,0xE0,0xF8,0xFC,0xFE,0x1E,0x07,0x07,0x07,0x07,0x1E,0xFE,0xFC,0xF8,0xF0,0x00,0x00,0x07,0x0F,0x3F,0x3F,0x7C,0x70,0x70,0x70,0x70,0x7C,0x3F,0x1F,0x1F,0x07,0x00},/*"0",0*/
 {0x00,0x00,0x00,0x06,0x07,0x07,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7F,0x7F,0x7F,0x7F,0x00,0x00,0x00,0x00,0x00,0x00},/*"1",1*/
@@ -77,113 +69,99 @@ public:
         DisplayString("AIR: ", 0, 2);
         DisplayString("ENGINE: ", 0, 3);
 		for (;;) {
-                    char buf[16];
+            char buf[16];
 
-                        if (ReadSensor(PID_RPM, value)) {
-                          sprintf(buf, "%4d", value);
-                          DisplayLargeNumber(buf, 16, 0);
-                        }
+            if (ReadSensor(PID_RPM, value)) {
+              sprintf(buf, "%4d", value);
+              DisplayLargeNumber(buf, 16, 0);
+            }
 
-                        if (ReadSensor(PID_SPEED, value)) {
-                          sprintf(buf, "%3d", value);
-                          DisplayLargeNumber(buf, 32, 1);
-                        }
+            if (ReadSensor(PID_SPEED, value)) {
+              sprintf(buf, "%3d", value);
+              DisplayLargeNumber(buf, 32, 1);
+            }
 
-                        if (count == 0) {
-                          // no need to poll temperature so often
-                          if (ReadSensor(PID_INTAKE_TEMP, value)) {
-                            sprintf(buf, "%4dC", value);
-                            DisplayString(buf, 11, 2);
-                          }
-                        } else if (count == 1) {
-                          // no need to poll temperature so often
-                          if (ReadSensor(PID_COOLANT_TEMP, value)) {
-                            sprintf(buf, "%4dC", value);
-                            DisplayString(buf, 11, 3);
-                          }
-                        }
+            if (count == 0) {
+              // no need to poll temperature so often
+              if (ReadSensor(PID_INTAKE_TEMP, value)) {
+                sprintf(buf, "%4dC", value);
+                DisplayString(buf, 11, 2);
+              }
+            } else if (count == 1) {
+              // no need to poll temperature so often
+              if (ReadSensor(PID_COOLANT_TEMP, value)) {
+                sprintf(buf, "%4dC", value);
+                DisplayString(buf, 11, 3);
+              }
+            }
 
-                        if (ReadSensor(PID_ENGINE_LOAD, value)) {
-                          sprintf(buf, "%d%% ", value);
-                          DisplayString(buf, 8, 3);
-                        }
+            if (ReadSensor(PID_ENGINE_LOAD, value)) {
+              sprintf(buf, "%d%% ", value);
+              DisplayString(buf, 8, 3);
+            }
 
-                        if (ReadSensor(PID_INTAKE_PRESSURE, value)) {
-                          sprintf(buf, "%dkPa ", value);
-                          DisplayString(buf, 5, 2);
-                        }
+            if (ReadSensor(PID_INTAKE_PRESSURE, value)) {
+              sprintf(buf, "%dkPa ", value);
+              DisplayString(buf, 5, 2);
+            }
 
-                        if (errors > 5) {
-                            return;
-                        }
-                        count++;
+            if (errors > 5) {
+                return;
+            }
+            count++;
 		}
 	}
 private:
-        void DisplayString(const char* s, char x = 0, char y = 0)
-        {
-          ZT.ScI2cMxDisplay8x16Str(OLED_ADDRESS, y << 1, x << 3, s);
-        }
-        void DisplayLargeNumber(const char* s, char x = 0, char y = 0)
-        {
-            char data[32];
-            y <<= 1;
-            while (*s) {
-                if (*s >= '0' && *s <= '9') {
-                    memcpy_P(data, font16x32[*s - '0'], 32);
-                    ZT.ScI2cMxDisplayDot16x16(OLED_ADDRESS, y , x, data);
-                } else {
-                    ZT.ScI2cMxFillArea(OLED_ADDRESS, y, y + 1, x, x + 16, 0);
-                }
-                x += 16;
-                s++;
+    void DisplayString(const char* s, char x = 0, char y = 0)
+    {
+        ZT.ScI2cMxDisplay8x16Str(OLED_ADDRESS, y << 1, x << 3, s);
+    }
+    void DisplayLargeNumber(const char* s, char x = 0, char y = 0)
+    {
+        char data[32];
+        y <<= 1;
+        while (*s) {
+            if (*s >= '0' && *s <= '9') {
+                memcpy_P(data, font16x32[*s - '0'], 32);
+                ZT.ScI2cMxDisplayDot16x16(OLED_ADDRESS, y , x, data);
+            } else {
+                ZT.ScI2cMxFillArea(OLED_ADDRESS, y, y + 1, x, x + 16, 0);
             }
+            x += 16;
+            s++;
         }
-        void ClearScreen()
-        {
-            ZT.ScI2cMxFillArea(OLED_ADDRESS, 0, 6, 0, 127, 0);
-            delay(10);
-        }
-        void InitScreen()
-        {
-          ZT.I2cInit();
-          ZT.ScI2cMxReset(OLED_ADDRESS);
-          ClearScreen();
-        }
-        void Log(const char* s)
-        {
-#ifdef __AVR_ATmega32U4__
-            Serial.println(s);
-#endif
-        }
-#ifdef USE_SOFTSERIAL
-        // override data communication functions
-        bool DataAvailable() { return mySerial.available(); }
-        char ReadData()
-        {
-          char c = mySerial.read();
-          Serial.write(c);
-          return c;
-        }
-        void WriteData(const char* s) { mySerial.write(s); }
-        void WriteData(const char c) { mySerial.write(c); }
-#endif
-	char displayMode;
-        int value;
+    }
+    void ClearScreen()
+    {
+        ZT.ScI2cMxFillArea(OLED_ADDRESS, 0, 6, 0, 127, 0);
+        delay(10);
+    }
+    void InitScreen()
+    {
+        ZT.I2cInit();
+        ZT.ScI2cMxReset(OLED_ADDRESS);
+        ClearScreen();
+    }
+    void Log(const char* s)
+    {
+    #ifdef __AVR_ATmega32U4__
+        Serial.println(s);
+    #endif
+    }
+    char displayMode;
+    int value;
 };
 
 COBDDash dash;
 
 void loop()
 {
-  dash.Connect();
-  dash.Loop();
+    dash.Connect();
+    dash.Loop();
 }
 
 void setup()
 {
-  pinMode(13, OUTPUT);
-
 #ifdef __AVR_ATmega32U4__
   /* On Leonardo, use USB serial for debugging*/
   Serial.begin(9600);
