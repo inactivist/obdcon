@@ -125,7 +125,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='&quot;$(TARGET_COMPILER_DIR)ArduinoUploader&quot; ${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex ${BOARD_INDEX} ${UPLOAD_PORT}' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -186,7 +185,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -194,7 +192,7 @@
 					<Variable name="BOARD_ID" value="nano328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM31" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Nano (168)">
@@ -217,7 +215,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -248,7 +245,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -279,7 +275,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -310,7 +305,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -341,7 +335,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -402,7 +395,6 @@
 					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
 					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
 					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
 				</ExtraCommands>
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
@@ -458,13 +450,10 @@
 		</Linker>
 		<Unit filename="MultiLCD.cpp" />
 		<Unit filename="MultiLCD.h" />
-		<Unit filename="PCD8544.cpp">
-			<Option compile="0" />
-			<Option link="0" />
-		</Unit>
+		<Unit filename="PCD8544.cpp" />
 		<Unit filename="PCD8544.h" />
-		<Unit filename="README.txt" />
 		<Unit filename="ZtLib.cpp" />
+		<Unit filename="ZtLib.h" />
 		<Unit filename="cores/CDC.cpp" />
 		<Unit filename="cores/HardwareSerial.cpp" />
 		<Unit filename="cores/Print.cpp" />
@@ -492,13 +481,21 @@
 		<Unit filename="cores/wiring_shift.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="libraries/MultiLCD.h" />
 		<Unit filename="libraries/OBD.cpp" />
+		<Unit filename="libraries/PCD8544.h" />
 		<Unit filename="libraries/SD.cpp" />
+		<Unit filename="libraries/TinyGPS.cpp" />
 		<Unit filename="libraries/Wire.cpp" />
+		<Unit filename="libraries/ZtLib.h" />
 		<Unit filename="libraries/twi.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="obdlogger.cpp" />
+		<Unit filename="obdlogger.ino">
+			<Option compile="1" />
+			<Option link="1" />
+			<Option compiler="avrgcc" use="1" buildCommand="$compiler $options -x c++ $includes -c $file -o $object" />
+		</Unit>
 		<Extensions>
 			<code_completion />
 			<debugger />

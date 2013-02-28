@@ -131,7 +131,7 @@ private:
     }
     void ClearScreen()
     {
-        ZT.ScI2cMxFillArea(OLED_ADDRESS, 0, 6, 0, 127, 0);
+        ZT.ScI2cMxFillArea(OLED_ADDRESS, 0, 7, 0, 127, 0);
         delay(10);
     }
     void InitScreen()
