@@ -47,6 +47,17 @@ const char* modeFmts[] = {"%4u", "%3u", "%3u", "%u",
 
 #define TOTAL_PIDS (sizeof(modePids) / sizeof(modePids[0]))
 
+// Convert ADC value to key number
+char get_key(unsigned int input)
+{
+  char k;
+  for (k = 0; k < NUM_KEYS; k++) {
+    if (input < adc_key_val[k])
+      return k;
+  }
+  return -1;
+}
+
 void updateMode()
 {
 	lcd.cursorTo(1, 0);
@@ -159,13 +170,3 @@ void loop()
 	}
 }
 
-// Convert ADC value to key number
-char get_key(unsigned int input)
-{
-  char k;
-  for (k = 0; k < NUM_KEYS; k++) {
-    if (input < adc_key_val[k])
-      return k;
-  }
-  return -1;
-}
