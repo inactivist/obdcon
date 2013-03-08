@@ -140,7 +140,7 @@
 				<Option type="1" />
 				<Option compiler="avrgcc" />
 				<Compiler>
-					<Add option="-Os" />
+					<Add option="-O2" />
 					<Add option="-mmcu=$(MCU)" />
 					<Add option="-D__AVR_ATmega328P__" />
 					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
@@ -450,8 +450,12 @@
 		</Linker>
 		<Unit filename="MultiLCD.cpp" />
 		<Unit filename="MultiLCD.h" />
+		<Unit filename="OBD.cpp" />
+		<Unit filename="OBD.h" />
 		<Unit filename="PCD8544.cpp" />
 		<Unit filename="PCD8544.h" />
+		<Unit filename="TinyGPS.cpp" />
+		<Unit filename="TinyGPS.h" />
 		<Unit filename="ZtLib.cpp" />
 		<Unit filename="ZtLib.h" />
 		<Unit filename="cores/CDC.cpp" />
@@ -481,13 +485,9 @@
 		<Unit filename="cores/wiring_shift.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="libraries/MultiLCD.h" />
-		<Unit filename="libraries/OBD.cpp" />
-		<Unit filename="libraries/PCD8544.h" />
 		<Unit filename="libraries/SD.cpp" />
-		<Unit filename="libraries/TinyGPS.cpp" />
+		<Unit filename="libraries/SoftwareSerial.cpp" />
 		<Unit filename="libraries/Wire.cpp" />
-		<Unit filename="libraries/ZtLib.h" />
 		<Unit filename="libraries/twi.c">
 			<Option compilerVar="CC" />
 		</Unit>
