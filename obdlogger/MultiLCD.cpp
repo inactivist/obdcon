@@ -116,12 +116,12 @@ const PROGMEM unsigned char font5x8[][5] = {
 
 #if USE_LCD_OLED
 
-void CLCD_OLED::PrintString8x16(const char* s, char x, char y)
+void LCD_OLED::PrintString8x16(const char* s, char x, char y)
 {
     ScI2cMxDisplay8x16Str(OLED_ADDRESS, y, x, s);
 }
 
-void CLCD_OLED::PrintString16x16(const char* s, char x, char y)
+void LCD_OLED::PrintString16x16(const char* s, char x, char y)
 {
     while (*s) {
         if (*s >= '0' && *s <= '9') {
@@ -136,13 +136,13 @@ void CLCD_OLED::PrintString16x16(const char* s, char x, char y)
     }
 }
 
-void CLCD_OLED::clear()
+void LCD_OLED::clear()
 {
     ScI2cMxFillArea(OLED_ADDRESS, 0, 7, 0, 127, 0);
     delay(10);
 }
 
-void CLCD_OLED::begin()
+void LCD_OLED::begin()
 {
     I2cInit();
     ScI2cMxReset(OLED_ADDRESS);

@@ -9,16 +9,26 @@
 #include <OBD.h>
 #include <SD.h>
 #include <Wire.h>
-#include <MultiLCD.h>
+#include <Multilcd.h>
+#include <TinyGPS.h>
+#include <SoftwareSerial.h>
 
 #define SD_CS_PIN 10
 //#define SD_CS_PIN 4 // ethernet shield
 
+// addition PIDs (non-OBD)
+#define PID_GPS_DATETIME 0xF01
+#define PID_GPS_COORDINATE 0xF02
+#define PID_GPS_ALTITUDE 0xF03
+#define PID_GPS_SPEED 0xF04
+
 COBD obd;
+TinyGPS gps;
 Sd2Card card;
 SdVolume volume;
 File sdfile;
-CLCD_OLED LCD;
+SoftwareSerial softSerial(6, 7); // Rx: 6, Tx: 7
+LCD_OLED lcd;
 
 uint32_t filesize = 0;
 uint32_t datacount = 0;
@@ -44,9 +54,9 @@ bool ShowCardInfo()
         }
 
         sprintf(buf, "SD Type: %s", type);
-        LCD.PrintString8x16(buf, 0, 0);
+        lcd.PrintString8x16(buf, 0, 0);
         if (!volume.init(card)) {
-            LCD.PrintString8x16("No FAT!", 0, 2);
+            lcd.PrintString8x16("No FAT!", 0, 2);
             return false;
         }
 
@@ -56,10 +66,10 @@ bool ShowCardInfo()
         volumesize >>= 10;
 
         sprintf(buf, "SD Size: %dMB", (int)volumesize);
-        LCD.PrintString8x16(buf, 0, 2);
+        lcd.PrintString8x16(buf, 0, 2);
         return true;
   } else {
-        LCD.PrintString8x16("No SD Card      ", 0, 2);
+        lcd.PrintString8x16("No SD Card      ", 0, 2);
         return false;
   }
 }
@@ -88,10 +98,10 @@ static void CheckSD()
             }
         }
         if (fileidx) break;
-        LCD.PrintString8x16("SD error  ", 0, 4);
+        lcd.PrintString8x16("SD error  ", 0, 4);
     }
 
-    LCD.PrintString8x16(filename, 0, 4);
+    lcd.PrintString8x16(filename, 0, 4);
 
     filesize = 0;
     sdfile = SD.open(filename, FILE_WRITE);
@@ -99,109 +109,127 @@ static void CheckSD()
         return;
     }
 
-    LCD.PrintString8x16("File error", 0, 4);
+    lcd.PrintString8x16("File error", 0, 4);
 }
 
 void InitScreen()
 {
-    LCD.clear();
-    LCD.PrintString8x16("rpm", 84, 0);
-    LCD.PrintString8x16("km/h", 84, 3);
+    lcd.clear();
+    lcd.PrintString8x16("rpm", 84, 0);
+    lcd.PrintString8x16("km/h", 84, 3);
 }
 
 void setup()
 {
     // start serial communication at the adapter defined baudrate
     OBDUART.begin(OBD_SERIAL_BAUDRATE);
+    softSerial.begin(9600);
 
-    LCD.begin();
-    LCD.clear();
-    LCD.backlight(true);
-    LCD.PrintString8x16("Initializing");
-
-#if 0
-    for (byte i = 0; i < 100; i++) {
-        Serial.print(i);
-        delay(100);
-    }
-    byte x = 0;
-    byte y = 2;
-    for (;;) {
-        char buf[2];
-        if (Serial.available()) {
-            buf[0] = Serial.read();
-            Serial.write(buf[0]);
-            buf[1] = 0;
-            LCD.PrintString8x16(buf, x, y % 8);
-            x += 8;
-            if (x >= 128) {
-                x = 0;
-                y += 2;
-            }
-        }
-    }
-#endif
+    lcd.begin();
+    lcd.clear();
+    lcd.backlight(true);
+    lcd.PrintString8x16("Initializing");
 
     // init SD card
     pinMode(SD_CS_PIN, OUTPUT);
     CheckSD();
 
     // initiate OBD-II connection until success
-    LCD.PrintString8x16("Waiting OBD Data", 0, 6);
+    lcd.PrintString8x16("Waiting OBD Data", 0, 6);
 
     while (!obd.Init());
     obd.ReadSensor(PID_DISTANCE, startDistance);
 
-    LCD.PrintString8x16("OBD Connected!  ", 0, 6);
+    lcd.PrintString8x16("OBD Connected!  ", 0, 6);
     delay(1000);
 
     InitScreen();
     lastTime = millis();
 }
 
-static char buf[32];
+static char databuf[32];
 static int len = 0;
-static byte pid = 0;
 static int value = 0;
 
-void RetrieveData(byte id)
+void ProcessGPSData(char c)
 {
-    obd.Query(id);
+    if (!gps.encode(c))
+        return;
+
+    // parsed GPS data is ready
+    uint32_t curTime = millis();
+    unsigned long fix_age;
+
+    {
+        unsigned long date, time;
+        gps.get_datetime(&date, &time, &fix_age);
+        len = sprintf(databuf, "%d,F01,%ld %ld\n", (int)(curTime - lastTime), date, time);
+        sdfile.write((uint8_t*)databuf, len);
+    }
+
+    {
+        long lat, lon;
+        gps.get_position(&lat, &lon, &fix_age);
+        len = sprintf(databuf, "%d,F02,%ld %ld\n", (int)(curTime - lastTime), lat, lon);
+        sdfile.write((uint8_t*)databuf, len);
+        // display LAT/LON
+        sprintf(databuf, "%ld", lat);
+        lcd.PrintString8x16(databuf, 0, 4);
+        sprintf(databuf, "%ld", lon);
+        lcd.PrintString8x16(databuf, 8 * 8, 4);
+    }
+
+    len = sprintf(databuf, "%d,F03,%ld %ld\n", (int)(curTime - lastTime), gps.speed() * 1852 / 100);
+    sdfile.write((uint8_t*)databuf, len);
+
+    len = sprintf(databuf, "%d,F04,%ld %ld\n", (int)(curTime - lastTime), gps.altitude());
+    sdfile.write((uint8_t*)databuf, len);
+
+    lastTime = curTime;
+}
+void RetrieveData(byte pid)
+{
+    // issue a query for OBD
+    obd.Query(pid);
 
     // flush data in the buffer
     if (len > 0) {
-        sdfile.write((uint8_t*)buf, len);
+        sdfile.write((uint8_t*)databuf, len);
+
+        char* buf = databuf; // data in buffer saved, free for other use
         if (datacount % 100 == 99) {
             sdfile.flush();
             sprintf(buf, "%4u KB", (int)(filesize >> 10));
-            LCD.PrintString8x16(buf, 72, 6);
+            lcd.PrintString8x16(buf, 72, 6);
         }
 
         switch (pid) {
         case PID_RPM:
             sprintf(buf, "%4d", value);
-            LCD.PrintString16x16(buf, 16, 0);
+            lcd.PrintString16x16(buf, 16, 0);
             break;
         case PID_SPEED:
             sprintf(buf, "%3d", value);
-            LCD.PrintString16x16(buf, 32, 3);
+            lcd.PrintString16x16(buf, 32, 2);
             break;
         case PID_DISTANCE:
             if (value >= startDistance) {
                 sprintf(buf, "%d km   ", value - startDistance);
-                LCD.PrintString8x16(buf, 0, 6);
+                lcd.PrintString8x16(buf, 0, 6);
             }
             break;
         }
     }
+    if (softSerial.available()) {
+        ProcessGPSData(softSerial.read());
+    }
 
-    if (obd.GetResponse(id, value)) {
+    if (obd.GetResponse(pid, value)) {
         uint32_t curTime = millis();
-        len = sprintf(buf, "%d,%X,%d\n", (int)(curTime - lastTime), id, value);
+        len = sprintf(databuf, "%d,%X,%d\n", (int)(curTime - lastTime), pid, value);
         filesize += len;
         datacount++;
         lastTime = curTime;
-        pid = id;
         return;
     }
     len = 0;
@@ -233,11 +261,11 @@ void loop()
 
     if (obd.errors > 2) {
         sdfile.close();
-        LCD.clear();
-        LCD.PrintString8x16("Reconnecting...");
+        lcd.clear();
+        lcd.PrintString8x16("Reconnecting...");
         digitalWrite(SD_CS_PIN, LOW);
         for (int i = 0; !obd.Init(); i++) {
-            if (i == 10) LCD.clear();
+            if (i == 10) lcd.clear();
         }
         digitalWrite(SD_CS_PIN, HIGH);
         CheckSD();
