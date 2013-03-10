@@ -192,7 +192,7 @@
 					<Variable name="BOARD_ID" value="nano328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="" />
+					<Variable name="UPLOAD_PORT" value="COM33" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Nano (168)">

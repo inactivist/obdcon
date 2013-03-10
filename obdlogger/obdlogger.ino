@@ -11,7 +11,6 @@
 #include <Wire.h>
 #include <Multilcd.h>
 #include <TinyGPS.h>
-#include <SoftwareSerial.h>
 
 #define SD_CS_PIN 10
 //#define SD_CS_PIN 4 // ethernet shield
@@ -22,21 +21,29 @@
 #define PID_GPS_ALTITUDE 0xF03
 #define PID_GPS_SPEED 0xF04
 
+// GPS logging can only be enabled when there is additional serial UART
+#if defined(__AVR_ATmega2560__) || defined(__AVR_ATmega1280__)
+#define ENABLE_GPS
+#endif // defined
+
 COBD obd;
+#ifdef ENABLE_GPS
 TinyGPS gps;
+#endif
 Sd2Card card;
 SdVolume volume;
 File sdfile;
-SoftwareSerial softSerial(6, 7); // Rx: 6, Tx: 7
 LCD_OLED lcd;
 
 uint32_t filesize = 0;
 uint32_t datacount = 0;
 
+void ProcessGPSData(char c);
+
 bool ShowCardInfo()
 {
   if (card.init(SPI_HALF_SPEED, SD_CS_PIN)) {
-        char* type;
+        const char* type;
         char buf[20];
 
         switch(card.type()) {
@@ -115,15 +122,17 @@ static void CheckSD()
 void InitScreen()
 {
     lcd.clear();
-    lcd.PrintString8x16("rpm", 84, 0);
-    lcd.PrintString8x16("km/h", 84, 3);
+    lcd.PrintString8x16("kph", 92, 0);
+    lcd.PrintString8x16("rpm", 92, 2);
 }
 
 void setup()
 {
     // start serial communication at the adapter defined baudrate
     OBDUART.begin(OBD_SERIAL_BAUDRATE);
-    softSerial.begin(9600);
+#ifdef ENABLE_GPS
+    Serial2.begin(4800);
+#endif
 
     lcd.begin();
     lcd.clear();
@@ -151,6 +160,7 @@ static char databuf[32];
 static int len = 0;
 static int value = 0;
 
+#ifdef ENABLE_GPS
 void ProcessGPSData(char c)
 {
     if (!gps.encode(c))
@@ -178,15 +188,15 @@ void ProcessGPSData(char c)
         sprintf(databuf, "%ld", lon);
         lcd.PrintString8x16(databuf, 8 * 8, 4);
     }
-
     len = sprintf(databuf, "%d,F03,%ld %ld\n", (int)(curTime - lastTime), gps.speed() * 1852 / 100);
     sdfile.write((uint8_t*)databuf, len);
 
     len = sprintf(databuf, "%d,F04,%ld %ld\n", (int)(curTime - lastTime), gps.altitude());
     sdfile.write((uint8_t*)databuf, len);
-
     lastTime = curTime;
 }
+#endif
+
 void RetrieveData(byte pid)
 {
     // issue a query for OBD
@@ -206,11 +216,11 @@ void RetrieveData(byte pid)
         switch (pid) {
         case PID_RPM:
             sprintf(buf, "%4d", value);
-            lcd.PrintString16x16(buf, 16, 0);
+            lcd.PrintString16x16(buf, 0, 0);
             break;
         case PID_SPEED:
             sprintf(buf, "%3d", value);
-            lcd.PrintString16x16(buf, 32, 2);
+            lcd.PrintString16x16(buf, 16, 2);
             break;
         case PID_DISTANCE:
             if (value >= startDistance) {
@@ -220,9 +230,12 @@ void RetrieveData(byte pid)
             break;
         }
     }
-    if (softSerial.available()) {
-        ProcessGPSData(softSerial.read());
+
+#ifdef ENABLE_GPS
+    while (Serial2.available()) {
+        ProcessGPSData(Serial2.read());
     }
+#endif
 
     if (obd.GetResponse(pid, value)) {
         uint32_t curTime = millis();
@@ -259,7 +272,7 @@ void loop()
     //RetrieveData(PID_THROTTLE);
     //RetrieveData(PID_ABS_ENGINE_LOAD);
 
-    if (obd.errors > 2) {
+    if (obd.errors >= 5) {
         sdfile.close();
         lcd.clear();
         lcd.PrintString8x16("Reconnecting...");
