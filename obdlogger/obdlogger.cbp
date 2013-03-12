@@ -448,6 +448,8 @@
 		<Linker>
 			<Add option="-Wl,--gc-sections" />
 		</Linker>
+		<Unit filename="MPU6050.cpp" />
+		<Unit filename="MPU6050.h" />
 		<Unit filename="MultiLCD.cpp" />
 		<Unit filename="MultiLCD.h" />
 		<Unit filename="OBD.cpp" />

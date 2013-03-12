@@ -11,6 +11,7 @@
 #include <Wire.h>
 #include <Multilcd.h>
 #include <TinyGPS.h>
+#include "MPU6050.h"
 
 #define SD_CS_PIN 10
 //#define SD_CS_PIN 4 // ethernet shield
