@@ -3,11 +3,6 @@
 
 #include <Wire.h>
 
-int MPU6050_init();
-int MPU6050_write_reg(int reg, uint8_t data);
-int MPU6050_write(int start, const uint8_t *pData, int size);
-int MPU6050_read(int start, uint8_t *buffer, int size);
-
 // The temperature sensor is -40 to +85 degrees Celsius.
 // It is a signed integer.
 // According to the datasheet:
@@ -642,5 +637,8 @@ typedef union accel_t_gyro_union
     int z_gyro;
   } value;
 };
+
+int MPU6050_init();
+int MPU6050_readout(accel_t_gyro_union* accel_t_gyro);
 
 #endif // MPU6050_H_INCLUDED
