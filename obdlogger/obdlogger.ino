@@ -13,6 +13,7 @@
 #include <TinyGPS.h>
 #include "MPU6050.h"
 
+#define DATASET_INTERVAL 1000 /* ms */
 #define SD_CS_PIN 10
 //#define SD_CS_PIN 4 // ethernet shield
 
@@ -252,6 +253,7 @@ void RetrieveData(byte pid)
 void loop()
 {
     static char count = 0;
+    static unsigned long t = millis();
 
     switch (count++) {
     case 0:
@@ -286,5 +288,9 @@ void loop()
         delay(1000);
         InitScreen();
         count = 0;
+        return;
     }
+
+    t = millis() - t;
+    if (t < DATASET_INTERVAL) delay(DATASET_INTERVAL - t);
 }

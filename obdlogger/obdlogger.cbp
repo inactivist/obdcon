@@ -192,7 +192,7 @@
 					<Variable name="BOARD_ID" value="nano328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM33" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Nano (168)">
@@ -442,6 +442,7 @@
 			<Add option="-ffunction-sections" />
 			<Add option="-fdata-sections" />
 			<Add option="-s" />
+			<Add option="-DF_CPU=16000000L" />
 			<Add directory="." />
 			<Add directory="include" />
 		</Compiler>
