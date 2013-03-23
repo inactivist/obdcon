@@ -1,6 +1,3 @@
-#define USE_LCD_8544 0
-#define USE_LCD_OLED 1
-
 class LCD_Null {
 public:
     virtual void PrintString8x16(const char* s, char x = 0, char y = 0) {}
@@ -12,7 +9,6 @@ public:
 extern const PROGMEM unsigned char font16x32[][32];
 extern const PROGMEM unsigned char font5x8[][5];
 
-#if USE_LCD_8544
 #include "PCD8544.h"
 
 class LCD_PCD8544 : public PCD8544 {
@@ -30,9 +26,6 @@ public:
     }
 };
 
-#endif // USE_LCD_8544
-
-#if USE_LCD_OLED
 #include "ZtLib.h"
 
 #define OLED_ADDRESS 0x27
@@ -45,4 +38,3 @@ public:
     void begin();
     void backlight(bool on) {}
 };
-#endif

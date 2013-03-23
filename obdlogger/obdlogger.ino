@@ -24,9 +24,9 @@
 #define PID_GPS_SPEED 0xF04
 
 // GPS logging can only be enabled when there is additional serial UART
-#if defined(__AVR_ATmega2560__) || defined(__AVR_ATmega1280__)
+#if defined(__AVR_ATmega2560__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega644p)
 #define ENABLE_GPS
-#endif // defined
+#endif
 
 COBD obd;
 #ifdef ENABLE_GPS
