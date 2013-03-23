@@ -6,24 +6,6 @@
 		<Option pch_mode="2" />
 		<Option compiler="avrgcc" />
 		<Build>
-			<Target title="Simulator - Debug">
-				<Option output="obdlogger_sim.exe" prefix_auto="1" extension_auto="0" />
-				<Option object_output="obj/Debug/" />
-				<Option type="1" />
-				<Option compiler="GCC" />
-				<Compiler>
-					<Add option="-g" />
-					<Add option="-DARDUSIM" />
-					<Add option="-DENABLE_API_NAME" />
-					<Add option="-D__AVR_ATmega328P__" />
-					<Add directory="$(ARDUINO_DIR)/arduino/cores" />
-					<Add directory="$(ARDUINO_DIR)/arduino/variants/standard" />
-					<Add directory="$(ARDUINO_DIR)/include" />
-				</Compiler>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\ardusim" />
-				</Environment>
-			</Target>
 			<Target title="Simulator - Release">
 				<Option output="obdlogger_sim.exe" prefix_auto="1" extension_auto="0" />
 				<Option object_output="obj/Release/" />
@@ -66,10 +48,10 @@
 				<Environment>
 					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
 					<Variable name="BOARD" value="Arduino Uno" />
-					<Variable name="BOARD_INDEX" value="1" />
+					<Variable name="BOARD_ID" value="uno" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="115200" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Leonardo">
@@ -100,39 +82,7 @@
 					<Variable name="BOARD_ID" value="leonardo" />
 					<Variable name="MCU" value="atmega32u4" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
-				</Environment>
-			</Target>
-			<Target title="Arduino Micro">
-				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
-				<Option type="1" />
-				<Option compiler="avrgcc" />
-				<Compiler>
-					<Add option="-Os" />
-					<Add option="-mmcu=$(MCU)" />
-					<Add option="-D__AVR_ATmega32U4__" />
-					<Add option="-DUSB_VID=0x2341" />
-					<Add option="-DUSB_PID=0x803C" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
-					<Add directory="$(ARDUINO_DIR)/libraries" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/variants/micro" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-					<Add option="-mmcu=$(MCU)" />
-				</Linker>
-				<ExtraCommands>
-					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
-					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
-					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-				</ExtraCommands>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
-					<Variable name="BOARD" value="Arduino Micro" />
-					<Variable name="BOARD_ID" value="micro" />
-					<Variable name="MCU" value="atmega32u4" />
-					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Duemilanove (328)">
@@ -162,7 +112,7 @@
 					<Variable name="BOARD_ID" value="duemilanove328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM10" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Nano (328)">
@@ -195,36 +145,6 @@
 					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
-			<Target title="Arduino Nano (168)">
-				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
-				<Option type="1" />
-				<Option compiler="avrgcc" />
-				<Compiler>
-					<Add option="-Os" />
-					<Add option="-mmcu=$(MCU)" />
-					<Add option="-D__AVR_ATmega168__" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
-					<Add directory="$(ARDUINO_DIR)/libraries" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/variants/eightanaloginputs" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-					<Add option="-mmcu=$(MCU)" />
-				</Linker>
-				<ExtraCommands>
-					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
-					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
-					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-				</ExtraCommands>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
-					<Variable name="BOARD" value="Arduino Nano (168)" />
-					<Variable name="BOARD_ID" value="nano168" />
-					<Variable name="MCU" value="atmega168" />
-					<Variable name="UPLOAD_BAUDRATE" value="19200" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
-				</Environment>
-			</Target>
 			<Target title="Arduino Mini (328)">
 				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
 				<Option type="1" />
@@ -252,37 +172,7 @@
 					<Variable name="BOARD_ID" value="mini328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
-				</Environment>
-			</Target>
-			<Target title="Arduino Mini (168)">
-				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
-				<Option type="1" />
-				<Option compiler="avrgcc" />
-				<Compiler>
-					<Add option="-Os" />
-					<Add option="-mmcu=$(MCU)" />
-					<Add option="-D__AVR_ATmega168__" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
-					<Add directory="$(ARDUINO_DIR)/libraries" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/variants/eightanaloginputs" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-					<Add option="-mmcu=$(MCU)" />
-				</Linker>
-				<ExtraCommands>
-					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
-					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
-					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-				</ExtraCommands>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
-					<Variable name="BOARD" value="Arduino Mini (168)" />
-					<Variable name="BOARD_ID" value="mini168" />
-					<Variable name="MCU" value="atmega168" />
-					<Variable name="UPLOAD_BAUDRATE" value="19200" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Pro Mini (328)">
@@ -312,37 +202,7 @@
 					<Variable name="BOARD_ID" value="promini328" />
 					<Variable name="MCU" value="atmega328p" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
-				</Environment>
-			</Target>
-			<Target title="Arduino Pro Mini (168)">
-				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
-				<Option type="1" />
-				<Option compiler="avrgcc" />
-				<Compiler>
-					<Add option="-Os" />
-					<Add option="-mmcu=$(MCU)" />
-					<Add option="-D__AVR_ATmega168__" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
-					<Add directory="$(ARDUINO_DIR)/libraries" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/variants/standard" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-					<Add option="-mmcu=$(MCU)" />
-				</Linker>
-				<ExtraCommands>
-					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
-					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
-					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-				</ExtraCommands>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
-					<Variable name="BOARD" value="Arduino Pro Mini (168)" />
-					<Variable name="BOARD_ID" value="promini168" />
-					<Variable name="MCU" value="atmega168" />
-					<Variable name="UPLOAD_BAUDRATE" value="19200" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Mega 2560/ADK">
@@ -372,7 +232,7 @@
 					<Variable name="BOARD_ID" value="mega2560" />
 					<Variable name="MCU" value="atmega2560" />
 					<Variable name="UPLOAD_BAUDRATE" value="115200" />
-					<Variable name="UPLOAD_PORT" value="COM27" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 			<Target title="Arduino Mega 1280">
@@ -402,38 +262,7 @@
 					<Variable name="BOARD_ID" value="mega1280" />
 					<Variable name="MCU" value="atmega1280" />
 					<Variable name="UPLOAD_BAUDRATE" value="57600" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
-				</Environment>
-			</Target>
-			<Target title="Arduino Mega 8">
-				<Option output="bin/Release/obdlogger_${BOARD_ID}_$(UPLOAD_PORT).elf" prefix_auto="1" extension_auto="0" />
-				<Option type="1" />
-				<Option compiler="avrgcc" />
-				<Compiler>
-					<Add option="-Os" />
-					<Add option="-mmcu=$(MCU)" />
-					<Add option="-D__AVR_ATmega328P__" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/cores/arduino" />
-					<Add directory="$(ARDUINO_DIR)/libraries" />
-					<Add directory="$(ARDUINO_DIR)/hardware/arduino/variants/standard" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-					<Add option="-mmcu=$(MCU)" />
-				</Linker>
-				<ExtraCommands>
-					<Add after="avr-objcopy -O ihex -R .eeprom -R .eesafe $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).hex" />
-					<Add after="avr-objcopy --no-change-warnings -j .eeprom --change-section-lma .eeprom=0 -O ihex $(TARGET_OUTPUT_FILE) $(TARGET_OUTPUT_FILE).eep.hex" />
-					<Add after="avr-size --mcu=$(MCU) --format=avr $(TARGET_OUTPUT_FILE)" />
-					<Add after='avrdude -V -C &quot;$(TARGET_COMPILER_DIR)bin/avrdude.conf&quot; -p${MCU} -carduino -P\\.\${UPLOAD_PORT} -b${UPLOAD_BAUDRATE} -D -Uflash:w:${TARGET_OUTPUT_DIR}${TARGET_OUTPUT_BASENAME}.elf.hex:i' />
-				</ExtraCommands>
-				<Environment>
-					<Variable name="ARDUINO_DIR" value="$(APP_PATH)\arduino" />
-					<Variable name="BOARD" value="Arduino Mega 8" />
-					<Variable name="BOARD_ID" value="mega8" />
-					<Variable name="MCU" value="atmega8" />
-					<Variable name="UPLOAD_BAUDRATE" value="19200" />
-					<Variable name="UPLOAD_PORT" value="COM25" />
+					<Variable name="UPLOAD_PORT" value="" />
 				</Environment>
 			</Target>
 		</Build>
