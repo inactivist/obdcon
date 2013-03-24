@@ -121,6 +121,7 @@ void LCD_OLED::print(const char* s)
 
 void LCD_OLED::printLarge(const char* s)
 {
+    delay(5);
     while (*s) {
         if (*s >= '0' && *s <= '9') {
             char data[32];

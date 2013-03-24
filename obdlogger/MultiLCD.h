@@ -21,8 +21,8 @@ class LCD_OLED : public ZtLib {
 public:
     void setCursor(unsigned char column, unsigned char line)
     {
-        m_column = column;
-        m_line = line * 2;
+        m_column = column << 3;
+        m_line = line << 1;
     }
     void print(const char* s);
     void printLarge(const char* s);
@@ -33,3 +33,11 @@ private:
     unsigned char m_column;
     unsigned char m_line;
 };
+
+#include "LCD4Bit_mod.h"
+class LCD_1602 : public LCD4Bit_mod {
+public:
+    void printLarge(const char* s) { print(s); }
+    void backlight(bool on) {}
+};
+
