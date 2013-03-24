@@ -42,11 +42,11 @@
 class PCD8544: public Print {
     public:
         // All the pins can be changed from the default values...
-        PCD8544(unsigned char sclk  = 3,   /* clock       (display pin 2) */
-                unsigned char sdin  = 4,   /* data-in     (display pin 3) */
-                unsigned char dc    = 5,   /* data select (display pin 4) */
+        PCD8544(unsigned char sclk  = 2,   /* clock       (display pin 2) */
+                unsigned char sdin  = 3,   /* data-in     (display pin 3) */
+                unsigned char dc    = 4,   /* data select (display pin 4) */
                 unsigned char reset = 6,   /* reset       (display pin 8) */
-                unsigned char sce   = 7);  /* enable      (display pin 5) */
+                unsigned char sce   = 5);  /* enable      (display pin 5) */
 
         // Display initialization (dimensions in pixels)...
         void begin(unsigned char width=84, unsigned char height=48, unsigned char model=CHIP_PCD8544);
@@ -55,7 +55,7 @@ class PCD8544: public Print {
         // Erase everything on the display...
         void clear();
         void clearLine();  // ...or just the current line
-        
+
         // Control the display's power state...
         void setPower(bool on);
 
@@ -78,7 +78,7 @@ class PCD8544: public Print {
         // Write an ASCII character at the current cursor position (7-bit)...
 #if ARDUINO < 100
         virtual void write(uint8_t chr);
-#else        
+#else
         virtual size_t write(uint8_t chr);
 #endif
 
@@ -87,6 +87,11 @@ class PCD8544: public Print {
 
         // Draw a chart element at the current cursor position...
         void drawColumn(unsigned char lines, unsigned char value);
+
+    protected:
+        // Current cursor position...
+        unsigned char column;
+        unsigned char line;
 
     private:
         unsigned char pin_sclk;
@@ -99,9 +104,6 @@ class PCD8544: public Print {
         unsigned char width;
         unsigned char height;
 
-        // Current cursor position...
-        unsigned char column;
-        unsigned char line;
 
         // User-defined glyphs (below the ASCII space character)...
         const unsigned char *custom[' '];

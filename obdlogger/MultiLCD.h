@@ -1,11 +1,3 @@
-class LCD_Null {
-public:
-    virtual void PrintString8x16(const char* s, char x = 0, char y = 0) {}
-    virtual void PrintString16x16(const char* s, char x = 0, char y = 0) {}
-    virtual void clear() {}
-    virtual void begin() {}
-};
-
 extern const PROGMEM unsigned char font16x32[][32];
 extern const PROGMEM unsigned char font5x8[][5];
 
@@ -13,16 +5,11 @@ extern const PROGMEM unsigned char font5x8[][5];
 
 class LCD_PCD8544 : public PCD8544 {
 public:
-    void PrintString8x16(const char* s, char x = 0, char y = 0)
-    {
-        setCursor(x, y * 4);
-        while (*s++) write(*s);
-    }
-    void PrintString16x16(const char* s, char x = 0, char y = 0) {}
+    void printLarge(const char* s);
     void backlight(bool on)
     {
-        pinMode(2, OUTPUT);
-        digitalWrite(2, on ? LOW : HIGH);
+        pinMode(7, OUTPUT);
+        digitalWrite(7, on ? HIGH : LOW);
     }
 };
 
@@ -32,9 +19,17 @@ public:
 
 class LCD_OLED : public ZtLib {
 public:
-    void PrintString8x16(const char* s, char x = 0, char y = 0);
-    void PrintString16x16(const char* s, char x = 0, char y = 0);
+    void setCursor(unsigned char column, unsigned char line)
+    {
+        m_column = column;
+        m_line = line * 2;
+    }
+    void print(const char* s);
+    void printLarge(const char* s);
     void clear();
     void begin();
     void backlight(bool on) {}
+private:
+    unsigned char m_column;
+    unsigned char m_line;
 };

@@ -57,125 +57,125 @@ PCD8544::PCD8544(unsigned char sclk, unsigned char sdin,
 
 void PCD8544::begin(unsigned char width, unsigned char height, unsigned char model)
 {
-    width = width;
-    height = height;
+    this->width = width;
+    this->height = height;
 
-    column = 0;
-    line = 0;
+    this->column = 0;
+    this->line = 0;
 
     // Sanitize the custom glyphs...
-    memset(custom, 0, sizeof(custom));
+    memset(this->custom, 0, sizeof(this->custom));
 
     // All pins are outputs (these displays cannot be read)...
-    pinMode(pin_sclk, OUTPUT);
-    pinMode(pin_sdin, OUTPUT);
-    pinMode(pin_dc, OUTPUT);
-    pinMode(pin_reset, OUTPUT);
-    pinMode(pin_sce, OUTPUT);
+    pinMode(this->pin_sclk, OUTPUT);
+    pinMode(this->pin_sdin, OUTPUT);
+    pinMode(this->pin_dc, OUTPUT);
+    pinMode(this->pin_reset, OUTPUT);
+    pinMode(this->pin_sce, OUTPUT);
 
     // Reset the controller state...
-    digitalWrite(pin_reset, HIGH);
-    digitalWrite(pin_sce, HIGH);
-    digitalWrite(pin_reset, LOW);
-    delay(100);
-    digitalWrite(pin_reset, HIGH);
+    digitalWrite(this->pin_reset, HIGH);
+    digitalWrite(this->pin_sce, HIGH);
+    digitalWrite(this->pin_reset, LOW);
+    delay(100);  
+    digitalWrite(this->pin_reset, HIGH);
 
     // Set the LCD parameters...
-    send(PCD8544_CMD, 0x21);  // extended instruction set control (H=1)
-    send(PCD8544_CMD, 0x13);  // bias system (1:48)
+    this->send(PCD8544_CMD, 0x21);  // extended instruction set control (H=1)
+    this->send(PCD8544_CMD, 0x13);  // bias system (1:48)
 
     if (model == CHIP_ST7576) {
-        send(PCD8544_CMD, 0xe0);  // higher Vop, too faint at default
-        send(PCD8544_CMD, 0x05);  // partial display mode
+        this->send(PCD8544_CMD, 0xe0);  // higher Vop, too faint at default
+        this->send(PCD8544_CMD, 0x05);  // partial display mode
     } else {
-        send(PCD8544_CMD, 0xc2);  // default Vop (3.06 + 66 * 0.06 = 7V)
+        this->send(PCD8544_CMD, 0xc2);  // default Vop (3.06 + 66 * 0.06 = 7V)
     }
 
-    send(PCD8544_CMD, 0x20);  // extended instruction set control (H=0)
-    send(PCD8544_CMD, 0x09);  // all display segments on
+    this->send(PCD8544_CMD, 0x20);  // extended instruction set control (H=0)
+    this->send(PCD8544_CMD, 0x09);  // all display segments on
 
     // Clear RAM contents...
-    clear();
+    this->clear();
 
     // Activate LCD...
-    send(PCD8544_CMD, 0x08);  // display blank
-    send(PCD8544_CMD, 0x0c);  // normal mode (0x0d = inverse mode)
+    this->send(PCD8544_CMD, 0x08);  // display blank
+    this->send(PCD8544_CMD, 0x0c);  // normal mode (0x0d = inverse mode)
     delay(100);
 
     // Place the cursor at the origin...
-    send(PCD8544_CMD, 0x80);
-    send(PCD8544_CMD, 0x40);
+    this->send(PCD8544_CMD, 0x80);
+    this->send(PCD8544_CMD, 0x40);
 }
 
 
 void PCD8544::stop()
 {
-    clear();
-    setPower(false);
+    this->clear();
+    this->setPower(false);
 }
 
 
 void PCD8544::clear()
 {
-    setCursor(0, 0);
+    this->setCursor(0, 0);
 
-    for (unsigned short i = 0; i < width * (height/8); i++) {
-        send(PCD8544_DATA, 0x00);
+    for (unsigned short i = 0; i < this->width * (this->height/8); i++) {
+        this->send(PCD8544_DATA, 0x00);
     }
 
-    setCursor(0, 0);
+    this->setCursor(0, 0);
 }
 
 
 void PCD8544::clearLine()
 {
-    setCursor(0, line);
+    this->setCursor(0, this->line);
 
-    for (unsigned char i = 0; i < width; i++) {
-        send(PCD8544_DATA, 0x00);
+    for (unsigned char i = 0; i < this->width; i++) {
+        this->send(PCD8544_DATA, 0x00);
     }
 
-    setCursor(0, line);
+    this->setCursor(0, this->line);
 }
 
 
 void PCD8544::setPower(bool on)
 {
-    send(PCD8544_CMD, on ? 0x20 : 0x24);
+    this->send(PCD8544_CMD, on ? 0x20 : 0x24);
 }
 
 
 inline void PCD8544::display()
 {
-    setPower(true);
+    this->setPower(true);
 }
 
 
 inline void PCD8544::noDisplay()
 {
-    setPower(false);
+    this->setPower(false);
 }
 
 
 void PCD8544::setInverse(bool inverse)
 {
-    send(PCD8544_CMD, inverse ? 0x0d : 0x0c);
+    this->send(PCD8544_CMD, inverse ? 0x0d : 0x0c);
 }
 
 
 void PCD8544::home()
 {
-    setCursor(0, line);
+    this->setCursor(0, this->line);
 }
 
 
 void PCD8544::setCursor(unsigned char column, unsigned char line)
 {
-    column = (column % width);
-    line = (line % (height/9 + 1));
+    this->column = (column % this->width);
+    this->line = (line % (this->height/9 + 1));
 
-    send(PCD8544_CMD, 0x80 | column);
-    send(PCD8544_CMD, 0x40 | line);
+    this->send(PCD8544_CMD, 0x80 | this->column);
+    this->send(PCD8544_CMD, 0x40 | this->line); 
 }
 
 
@@ -185,8 +185,8 @@ void PCD8544::createChar(unsigned char chr, const unsigned char *glyph)
     if (chr >= ' ') {
         return;
     }
-
-    custom[chr] = glyph;
+    
+    this->custom[chr] = glyph;
 }
 
 
@@ -225,17 +225,17 @@ size_t PCD8544::write(uint8_t chr)
 
     // Output one column at a time...
     for (unsigned char i = 0; i < 5; i++) {
-        send(PCD8544_DATA, glyph[i]);
+        this->send(PCD8544_DATA, glyph[i]);
     }
 
     // One column between characters...
-    send(PCD8544_DATA, 0x00);
+    this->send(PCD8544_DATA, 0x00);
 
     // Update the cursor position...
-    column = (column + 6) % width;
+    this->column = (this->column + 6) % this->width;
 
-    if (column == 0) {
-        line = (line + 1) % (height/9 + 1);
+    if (this->column == 0) {
+        this->line = (this->line + 1) % (this->height/9 + 1);
     }
 
 #if ARDUINO >= 100
@@ -246,30 +246,30 @@ size_t PCD8544::write(uint8_t chr)
 
 void PCD8544::drawBitmap(const unsigned char *data, unsigned char columns, unsigned char lines)
 {
-    unsigned char scolumn = column;
-    unsigned char sline = line;
+    unsigned char scolumn = this->column;
+    unsigned char sline = this->line;
 
     // The bitmap will be clipped at the right/bottom edge of the display...
-    unsigned char mx = (scolumn + columns > width) ? (width - scolumn) : columns;
-    unsigned char my = (sline + lines > height/8) ? (height/8 - sline) : lines;
+    unsigned char mx = (scolumn + columns > this->width) ? (this->width - scolumn) : columns;
+    unsigned char my = (sline + lines > this->height/8) ? (this->height/8 - sline) : lines;
 
     for (unsigned char y = 0; y < my; y++) {
-        setCursor(scolumn, sline + y);
+        this->setCursor(scolumn, sline + y);
 
         for (unsigned char x = 0; x < mx; x++) {
-            send(PCD8544_DATA, data[y * columns + x]);
+            this->send(PCD8544_DATA, data[y * columns + x]);
         }
     }
 
     // Leave the cursor in a consistent position...
-    setCursor(scolumn + columns, sline);
+    this->setCursor(scolumn + columns, sline);
 }
 
 
 void PCD8544::drawColumn(unsigned char lines, unsigned char value)
 {
-    unsigned char scolumn = column;
-    unsigned char sline = line;
+    unsigned char scolumn = this->column;
+    unsigned char sline = this->line;
 
     // Keep "value" within range...
     if (value > lines*8) {
@@ -278,11 +278,11 @@ void PCD8544::drawColumn(unsigned char lines, unsigned char value)
 
     // Find the line where "value" resides...
     unsigned char mark = (lines*8 - 1 - value)/8;
-
+    
     // Clear the lines above the mark...
     for (unsigned char line = 0; line < mark; line++) {
-        setCursor(scolumn, sline + line);
-        send(PCD8544_DATA, 0x00);
+        this->setCursor(scolumn, sline + line);
+        this->send(PCD8544_DATA, 0x00);
     }
 
     // Compute the byte to draw at the "mark" line...
@@ -291,27 +291,27 @@ void PCD8544::drawColumn(unsigned char lines, unsigned char value)
         b <<= 1;
     }
 
-    setCursor(scolumn, sline + mark);
-    send(PCD8544_DATA, b);
+    this->setCursor(scolumn, sline + mark);
+    this->send(PCD8544_DATA, b);
 
     // Fill the lines below the mark...
     for (unsigned char line = mark + 1; line < lines; line++) {
-        setCursor(scolumn, sline + line);
-        send(PCD8544_DATA, 0xff);
+        this->setCursor(scolumn, sline + line);
+        this->send(PCD8544_DATA, 0xff);
     }
-
+  
     // Leave the cursor in a consistent position...
-    setCursor(scolumn + 1, sline);
+    this->setCursor(scolumn + 1, sline); 
 }
 
 
 void PCD8544::send(unsigned char type, unsigned char data)
 {
-    digitalWrite(pin_dc, type);
-
-    digitalWrite(pin_sce, LOW);
-    shiftOut(pin_sdin, pin_sclk, MSBFIRST, data);
-    digitalWrite(pin_sce, HIGH);
+    digitalWrite(this->pin_dc, type);
+  
+    digitalWrite(this->pin_sce, LOW);
+    shiftOut(this->pin_sdin, this->pin_sclk, MSBFIRST, data);
+    digitalWrite(this->pin_sce, HIGH);
 }
 
 

@@ -28,14 +28,22 @@
 #define ENABLE_GPS
 #endif
 
+// OBD-II
 COBD obd;
+
+// GPS
 #ifdef ENABLE_GPS
 TinyGPS gps;
 #endif
+
+// SD card
 Sd2Card card;
 SdVolume volume;
 File sdfile;
-LCD_OLED lcd;
+
+// LCD
+static LCD_OLED lcd; /* for I2C OLED module */
+//static LCD_PCD8544 lcd; /* for LCD4884 shield or Nokia 5100 screen module */
 
 uint32_t filesize = 0;
 uint32_t datacount = 0;
@@ -63,9 +71,11 @@ bool ShowCardInfo()
         }
 
         sprintf(buf, "SD Type: %s", type);
-        lcd.PrintString8x16(buf, 0, 0);
+        lcd.setCursor(0, 0);
+        lcd.print(buf);
         if (!volume.init(card)) {
-            lcd.PrintString8x16("No FAT!", 0, 2);
+            lcd.setCursor(0, 1);
+            lcd.print("No FAT!");
             return false;
         }
 
@@ -75,10 +85,12 @@ bool ShowCardInfo()
         volumesize >>= 10;
 
         sprintf(buf, "SD Size: %dMB", (int)volumesize);
-        lcd.PrintString8x16(buf, 0, 2);
+        lcd.setCursor(0, 1);
+        lcd.print(buf);
         return true;
   } else {
-        lcd.PrintString8x16("No SD Card      ", 0, 2);
+      lcd.setCursor(0, 1);
+        lcd.print("No SD Card      ");
         return false;
   }
 }
@@ -107,10 +119,12 @@ static void CheckSD()
             }
         }
         if (fileidx) break;
-        lcd.PrintString8x16("SD error  ", 0, 4);
+        lcd.setCursor(0, 2);
+        lcd.print("SD error  ");
     }
 
-    lcd.PrintString8x16(filename, 0, 4);
+    lcd.setCursor(0, 2);
+    lcd.print(filename);
 
     filesize = 0;
     sdfile = SD.open(filename, FILE_WRITE);
@@ -118,14 +132,18 @@ static void CheckSD()
         return;
     }
 
-    lcd.PrintString8x16("File error", 0, 4);
+    lcd.setCursor(0, 2);
+    lcd.print("File error");
 }
 
 void InitScreen()
 {
     lcd.clear();
-    lcd.PrintString8x16("kph", 92, 0);
-    lcd.PrintString8x16("rpm", 92, 2);
+    lcd.backlight(true);
+    lcd.setCursor(92, 0);
+    lcd.print("kph");
+    lcd.setCursor(92, 1);
+    lcd.print("rpm");
 }
 
 void setup()
@@ -139,19 +157,21 @@ void setup()
     lcd.begin();
     lcd.clear();
     lcd.backlight(true);
-    lcd.PrintString8x16("Initializing");
+    lcd.print("Initializing");
 
     // init SD card
     pinMode(SD_CS_PIN, OUTPUT);
     CheckSD();
 
     // initiate OBD-II connection until success
-    lcd.PrintString8x16("Waiting OBD Data", 0, 6);
+    lcd.setCursor(0, 3);
+    lcd.print("Waiting OBD Data");
 
     while (!obd.Init());
     obd.ReadSensor(PID_DISTANCE, startDistance);
 
-    lcd.PrintString8x16("OBD Connected!  ", 0, 6);
+    lcd.setCursor(0, 3);
+    lcd.print("OBD Connected!  ");
     delay(1000);
 
     InitScreen();
@@ -186,9 +206,11 @@ void ProcessGPSData(char c)
         sdfile.write((uint8_t*)databuf, len);
         // display LAT/LON
         sprintf(databuf, "%ld", lat);
-        lcd.PrintString8x16(databuf, 0, 4);
+        lcd.setCursor(0, 2);
+        lcd.print(databuf);
         sprintf(databuf, "%ld", lon);
-        lcd.PrintString8x16(databuf, 8 * 8, 4);
+        lcd.setCursor(8 * 8, 2);
+        lcd.print(databuf);
     }
     len = sprintf(databuf, "%d,F03,%ld %ld\n", (int)(curTime - lastTime), gps.speed() * 1852 / 100);
     sdfile.write((uint8_t*)databuf, len);
@@ -212,22 +234,26 @@ void RetrieveData(byte pid)
         if (datacount % 100 == 99) {
             sdfile.flush();
             sprintf(buf, "%4u KB", (int)(filesize >> 10));
-            lcd.PrintString8x16(buf, 72, 6);
+            lcd.setCursor(72, 3);
+            lcd.print(buf);
         }
 
         switch (pid) {
         case PID_RPM:
             sprintf(buf, "%4d", value);
-            lcd.PrintString16x16(buf, 0, 0);
+            lcd.setCursor(0, 0);
+            lcd.printLarge(buf);
             break;
         case PID_SPEED:
             sprintf(buf, "%3d", value);
-            lcd.PrintString16x16(buf, 16, 2);
+            lcd.setCursor(16, 1);
+            lcd.printLarge(buf);
             break;
         case PID_DISTANCE:
             if (value >= startDistance) {
                 sprintf(buf, "%d km   ", value - startDistance);
-                lcd.PrintString8x16(buf, 0, 6);
+                lcd.setCursor(0, 3);
+                lcd.print(buf);
             }
             break;
         }
@@ -278,7 +304,7 @@ void loop()
     if (obd.errors >= 5) {
         sdfile.close();
         lcd.clear();
-        lcd.PrintString8x16("Reconnecting...");
+        lcd.print("Reconnecting...");
         digitalWrite(SD_CS_PIN, LOW);
         for (int i = 0; !obd.Init(); i++) {
             if (i == 10) lcd.clear();

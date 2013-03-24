@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "MultiLCD.h"
 
-const PROGMEM unsigned char font16x32[][32] = {
+const PROGMEM unsigned char font16x16[][32] = {
 {0x00,0xE0,0xF8,0xFC,0xFE,0x1E,0x07,0x07,0x07,0x07,0x1E,0xFE,0xFC,0xF8,0xF0,0x00,0x00,0x07,0x0F,0x3F,0x3F,0x7C,0x70,0x70,0x70,0x70,0x7C,0x3F,0x1F,0x1F,0x07,0x00},/*0*/
 {0x00,0x00,0x00,0x06,0x07,0x07,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7F,0x7F,0x7F,0x7F,0x00,0x00,0x00,0x00,0x00,0x00},/*1*/
 {0x00,0x38,0x3C,0x3E,0x3E,0x0F,0x07,0x07,0x07,0xCF,0xFF,0xFE,0xFE,0x38,0x00,0x00,0x00,0x40,0x40,0x60,0x70,0x78,0x7C,0x7E,0x7F,0x77,0x73,0x71,0x70,0x70,0x00,0x00},/*2*/
@@ -114,22 +114,22 @@ const PROGMEM unsigned char font5x8[][5] = {
   { 0x00, 0x00, 0x00, 0x00, 0x00 }   // 7f
 };
 
-void LCD_OLED::PrintString8x16(const char* s, char x, char y)
+void LCD_OLED::print(const char* s)
 {
-    ScI2cMxDisplay8x16Str(OLED_ADDRESS, y, x, s);
+    ScI2cMxDisplay8x16Str(OLED_ADDRESS, m_line, m_column, s);
 }
 
-void LCD_OLED::PrintString16x16(const char* s, char x, char y)
+void LCD_OLED::printLarge(const char* s)
 {
     while (*s) {
         if (*s >= '0' && *s <= '9') {
             char data[32];
-            memcpy_P(data, font16x32[*s - '0'], 32);
-            ScI2cMxDisplayDot16x16(OLED_ADDRESS, y , x, data);
+            memcpy_P(data, font16x16[*s - '0'], 32);
+            ScI2cMxDisplayDot16x16(OLED_ADDRESS, m_line, m_column, data);
         } else {
-            ScI2cMxFillArea(OLED_ADDRESS, y, y + 1, x, x + 16, 0);
+            ScI2cMxFillArea(OLED_ADDRESS, m_line, m_line + 1, m_column, m_column + 16, 0);
         }
-        x += 16;
+        m_column = (m_column + 16) & 0x7f;
         s++;
     }
 }
@@ -145,4 +145,18 @@ void LCD_OLED::begin()
     I2cInit();
     ScI2cMxReset(OLED_ADDRESS);
     delay(10);
+}
+
+void LCD_PCD8544::printLarge(const char* s)
+{
+    while (*s) {
+        if (*s >= '0' && *s <= '9') {
+            unsigned char data[32];
+            memcpy_P(data, font16x16[*s - '0'], 32);
+            drawBitmap(data, 16, 16);
+        } else {
+            column = (column + 16) % 84;
+        }
+        s++;
+    }
 }
